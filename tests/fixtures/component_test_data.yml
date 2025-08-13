@@ -1,0 +1,189 @@
+# Test fixtures for Component Entity tests
+component_types:
+  hero_banner:
+    id: hero_banner
+    label: Hero Banner
+    description: A hero banner component for testing
+    sdc_id: test:hero_banner
+    rendering:
+      twig_enabled: true
+      react_enabled: true
+      default_method: twig
+    props:
+      title:
+        type: string
+        required: true
+      subtitle:
+        type: string
+      background_image:
+        type: object
+        properties:
+          src:
+            type: string
+          alt:
+            type: string
+      cta_button:
+        type: object
+        properties:
+          text:
+            type: string
+          url:
+            type: string
+
+  card:
+    id: card
+    label: Card
+    description: A card component for testing
+    sdc_id: test:card
+    rendering:
+      twig_enabled: true
+      react_enabled: false
+      default_method: twig
+    props:
+      title:
+        type: string
+        required: true
+      description:
+        type: string
+      image:
+        type: object
+      link:
+        type: object
+
+  alert:
+    id: alert
+    label: Alert
+    description: An alert component for testing
+    sdc_id: test:alert
+    rendering:
+      twig_enabled: false
+      react_enabled: true
+      default_method: react
+    props:
+      message:
+        type: string
+        required: true
+      type:
+        type: string
+        enum: [info, success, warning, error]
+        default: info
+      dismissible:
+        type: boolean
+        default: true
+
+components:
+  hero_banner_1:
+    type: hero_banner
+    name: Test Hero Banner 1
+    field_title: Welcome to Our Site
+    field_subtitle: Your journey starts here
+    field_background_image:
+      src: /sites/default/files/hero-bg.jpg
+      alt: Hero background
+    field_cta_button:
+      text: Get Started
+      url: /get-started
+    render_method: twig
+    status: true
+
+  hero_banner_2:
+    type: hero_banner
+    name: Test Hero Banner 2
+    field_title: React Hero Banner
+    field_subtitle: Built with React
+    render_method: react
+    react_config:
+      hydration: full
+      progressive: true
+      lazy: false
+    status: true
+
+  card_1:
+    type: card
+    name: Test Card 1
+    field_title: Card Title
+    field_description: This is a test card component
+    field_image:
+      target_id: 1
+      alt: Card image
+    field_link:
+      uri: https://example.com
+      title: Read more
+    render_method: twig
+    status: true
+
+  alert_1:
+    type: alert
+    name: Test Alert 1
+    field_message: This is an informational message
+    field_type: info
+    field_dismissible: true
+    render_method: react
+    status: true
+
+  alert_2:
+    type: alert
+    name: Test Alert 2
+    field_message: Operation completed successfully
+    field_type: success
+    field_dismissible: false
+    render_method: react
+    status: true
+
+users:
+  admin:
+    uid: 1
+    name: admin
+    mail: admin@example.com
+    permissions:
+      - administer component types
+      - administer component entities
+      - sync sdc components
+
+  author:
+    uid: 2
+    name: author
+    mail: author@example.com
+    permissions:
+      - create hero_banner component entities
+      - edit own hero_banner component entities
+      - delete own hero_banner component entities
+      - view published component entities
+
+  viewer:
+    uid: 3
+    name: viewer
+    mail: viewer@example.com
+    permissions:
+      - view published component entities
+
+field_mappings:
+  string_to_text:
+    prop_type: string
+    field_type: text
+    widget: text_textfield
+    formatter: text_default
+
+  integer_to_number:
+    prop_type: integer
+    field_type: integer
+    widget: number
+    formatter: number_integer
+
+  boolean_to_boolean:
+    prop_type: boolean
+    field_type: boolean
+    widget: boolean_checkbox
+    formatter: boolean
+
+  object_to_entity_reference:
+    prop_type: object
+    field_type: entity_reference
+    widget: entity_reference_autocomplete
+    formatter: entity_reference_label
+
+  array_to_text_long:
+    prop_type: array
+    field_type: text_long
+    widget: text_textarea
+    formatter: text_default

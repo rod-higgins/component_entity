@@ -1,0 +1,60 @@
+<?php
+
+/**
+ * @file
+ * Provides test views data for Component Entity module.
+ */
+
+use Drupal\views\Views;
+
+/**
+ * Implements hook_views_data_alter().
+ */
+function component_entity_test_views_views_data_alter(array &$data) {
+  // Add test-specific views data if needed.
+}
+
+/**
+ * Implements hook_install().
+ */
+function component_entity_test_views_install() {
+  // Create test view for component date filter testing.
+  $view = Views::create([
+    'id' => 'test_component_date_filter',
+    'label' => 'Test Component Date Filter',
+    'base_table' => 'component_field_data',
+    'core' => '10.x',
+    'display' => [
+      'default' => [
+        'id' => 'default',
+        'display_plugin' => 'default',
+        'position' => 0,
+        'display_options' => [
+          'fields' => [
+            'name' => [
+              'id' => 'name',
+              'table' => 'component_field_data',
+              'field' => 'name',
+              'plugin_id' => 'field',
+            ],
+            'created' => [
+              'id' => 'created',
+              'table' => 'component_field_data',
+              'field' => 'created',
+              'plugin_id' => 'field',
+            ],
+          ],
+          'filters' => [
+            'created' => [
+              'id' => 'created',
+              'table' => 'component_field_data',
+              'field' => 'created',
+              'plugin_id' => 'component_date',
+            ],
+          ],
+        ],
+      ],
+    ],
+  ]);
+  $view->save();
+}

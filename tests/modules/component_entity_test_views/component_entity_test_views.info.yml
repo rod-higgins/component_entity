@@ -1,0 +1,9 @@
+name: Component Entity Test Views
+type: module
+description: 'Support module for Component Entity tests with Views integration.'
+package: Testing
+core_version_requirement: ^10.2 || ^11
+dependencies:
+  - drupal:views
+  - component_entity:component_entity
+hidden: true
