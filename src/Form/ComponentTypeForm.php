@@ -1,0 +1,592 @@
+<?php
+
+namespace Drupal\component_entity\Form;
+
+use Drupal\Core\Entity\EntityForm;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Messenger\MessengerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Plugin\Component\ComponentPluginManager;
+
+/**
+ * Form handler for Component type add and edit forms.
+ */
+class ComponentTypeForm extends EntityForm {
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
+   * The SDC component plugin manager.
+   *
+   * @var \Drupal\Core\Plugin\Component\ComponentPluginManager
+   */
+  protected $componentManager;
+
+  /**
+   * Constructs a ComponentTypeForm object.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
+   * @param \Drupal\Core\Plugin\Component\ComponentPluginManager $component_manager
+   *   The SDC component plugin manager.
+   */
+  public function __construct(
+    EntityTypeManagerInterface $entity_type_manager,
+    MessengerInterface $messenger,
+    ComponentPluginManager $component_manager
+  ) {
+    $this->entityTypeManager = $entity_type_manager;
+    $this->messenger = $messenger;
+    $this->componentManager = $component_manager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('entity_type.manager'),
+      $container->get('messenger'),
+      $container->get('plugin.manager.sdc')
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function form(array $form, FormStateInterface $form_state) {
+    $form = parent::form($form, $form_state);
+    
+    /** @var \Drupal\component_entity\Entity\ComponentTypeInterface $component_type */
+    $component_type = $this->entity;
+    
+    // Basic information.
+    $form['label'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Label'),
+      '#maxlength' => 255,
+      '#default_value' => $component_type->label(),
+      '#description' => $this->t('Name of the component type.'),
+      '#required' => TRUE,
+    ];
+    
+    $form['id'] = [
+      '#type' => 'machine_name',
+      '#default_value' => $component_type->id(),
+      '#machine_name' => [
+        'exists' => '\Drupal\component_entity\Entity\ComponentType::load',
+        'source' => ['label'],
+      ],
+      '#disabled' => !$component_type->isNew(),
+      '#description' => $this->t('A unique machine-readable name for this component type. It must only contain lowercase letters, numbers, and underscores.'),
+    ];
+    
+    $form['description'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Description'),
+      '#default_value' => $component_type->get('description') ?? '',
+      '#description' => $this->t('Describe this component type. This text will be shown on the component add page.'),
+      '#rows' => 3,
+    ];
+    
+    // SDC Component mapping.
+    $form['sdc_mapping'] = [
+      '#type' => 'details',
+      '#title' => $this->t('SDC Component Mapping'),
+      '#open' => TRUE,
+    ];
+    
+    // Get available SDC components.
+    $sdc_options = $this->getAvailableSdcComponents();
+    
+    if (empty($sdc_options)) {
+      $form['sdc_mapping']['no_components'] = [
+        '#markup' => '<p>' . $this->t('No SDC components found. Please create SDC components in your module or theme.') . '</p>',
+      ];
+    }
+    else {
+      $form['sdc_mapping']['sdc_id'] = [
+        '#type' => 'select',
+        '#title' => $this->t('SDC Component'),
+        '#options' => $sdc_options,
+        '#default_value' => $component_type->get('sdc_id') ?? '',
+        '#empty_option' => $this->t('- Select an SDC component -'),
+        '#description' => $this->t('Select the SDC component that this type will use for rendering.'),
+        '#required' => TRUE,
+        '#ajax' => [
+          'callback' => '::updateComponentInfo',
+          'wrapper' => 'component-info-wrapper',
+          'progress' => [
+            'type' => 'throbber',
+            'message' => $this->t('Loading component information...'),
+          ],
+        ],
+      ];
+      
+      // Component information display.
+      $form['sdc_mapping']['component_info'] = [
+        '#type' => 'container',
+        '#attributes' => ['id' => 'component-info-wrapper'],
+      ];
+      
+      // Load component info if SDC ID is set.
+      $sdc_id = $form_state->getValue('sdc_id') ?? $component_type->get('sdc_id');
+      if ($sdc_id && isset($sdc_options[$sdc_id])) {
+        $form['sdc_mapping']['component_info'] = $this->buildComponentInfo($sdc_id);
+      }
+    }
+    
+    // Rendering configuration.
+    $form['rendering'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Rendering Configuration'),
+      '#open' => TRUE,
+    ];
+    
+    $rendering_config = $component_type->get('rendering') ?? [
+      'twig_enabled' => TRUE,
+      'react_enabled' => FALSE,
+      'default_method' => 'twig',
+    ];
+    
+    $form['rendering']['twig_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Twig rendering'),
+      '#default_value' => $rendering_config['twig_enabled'] ?? TRUE,
+      '#description' => $this->t('Allow this component to be rendered using Twig templates (server-side).'),
+    ];
+    
+    $form['rendering']['react_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable React rendering'),
+      '#default_value' => $rendering_config['react_enabled'] ?? FALSE,
+      '#description' => $this->t('Allow this component to be rendered using React (client-side).'),
+      '#states' => [
+        'disabled' => [
+          ':input[name="twig_enabled"]' => ['checked' => FALSE],
+        ],
+      ],
+    ];
+    
+    // Check if React component exists.
+    if ($sdc_id) {
+      $has_react = $this->hasReactComponent($sdc_id);
+      if (!$has_react) {
+        $form['rendering']['react_enabled']['#disabled'] = TRUE;
+        $form['rendering']['react_enabled']['#description'] .= ' <strong>' . 
+          $this->t('No React component found. Create a .jsx or .tsx file for this component to enable React rendering.') . 
+          '</strong>';
+      }
+    }
+    
+    $form['rendering']['default_method'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Default render method'),
+      '#options' => [
+        'twig' => $this->t('Twig (Server-side)'),
+        'react' => $this->t('React (Client-side)'),
+      ],
+      '#default_value' => $rendering_config['default_method'] ?? 'twig',
+      '#description' => $this->t('The default rendering method for new components of this type.'),
+      '#states' => [
+        'visible' => [
+          [':input[name="twig_enabled"]' => ['checked' => TRUE]],
+          'and',
+          [':input[name="react_enabled"]' => ['checked' => TRUE]],
+        ],
+      ],
+    ];
+    
+    // React-specific configuration.
+    $form['rendering']['react_library'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('React component library'),
+      '#default_value' => $rendering_config['react_library'] ?? '',
+      '#description' => $this->t('The Drupal library that contains the React component (e.g., "mymodule/components.hero").'),
+      '#states' => [
+        'visible' => [
+          ':input[name="react_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+    
+    // Advanced settings.
+    $form['advanced'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Advanced Settings'),
+      '#open' => FALSE,
+    ];
+    
+    $form['advanced']['revision'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Create new revision'),
+      '#default_value' => $component_type->get('revision') ?? TRUE,
+      '#description' => $this->t('Automatically create a new revision when components of this type are saved.'),
+    ];
+    
+    $form['advanced']['preview_mode'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Preview mode'),
+      '#options' => [
+        'default' => $this->t('Default'),
+        'disabled' => $this->t('Disabled'),
+        'optional' => $this->t('Optional'),
+        'required' => $this->t('Required'),
+      ],
+      '#default_value' => $component_type->get('preview_mode') ?? 'optional',
+      '#description' => $this->t('Configure preview settings for this component type.'),
+    ];
+    
+    $form['advanced']['workflow'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable workflow'),
+      '#default_value' => $component_type->get('workflow') ?? FALSE,
+      '#description' => $this->t('Enable workflow states (draft, published, archived) for components of this type.'),
+    ];
+    
+    // Validation settings.
+    $form['validation'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Validation Settings'),
+      '#open' => FALSE,
+    ];
+    
+    $form['validation']['strict_schema'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Strict schema validation'),
+      '#default_value' => $component_type->get('strict_schema') ?? TRUE,
+      '#description' => $this->t('Validate component data against the SDC schema definition.'),
+    ];
+    
+    $form['validation']['required_fields'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Required fields'),
+      '#default_value' => $component_type->get('required_fields') ?? '',
+      '#description' => $this->t('Machine names of fields that should be required, one per line.'),
+      '#rows' => 3,
+    ];
+    
+    // Auto-sync configuration.
+    $form['sync'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Synchronization Settings'),
+      '#open' => FALSE,
+    ];
+    
+    $form['sync']['auto_sync'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Auto-sync with SDC'),
+      '#default_value' => $component_type->get('auto_sync') ?? TRUE,
+      '#description' => $this->t('Automatically synchronize fields when the SDC component definition changes.'),
+    ];
+    
+    $form['sync']['sync_slots'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Sync slots as fields'),
+      '#default_value' => $component_type->get('sync_slots') ?? TRUE,
+      '#description' => $this->t('Create fields for SDC component slots.'),
+    ];
+    
+    return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    parent::validateForm($form, $form_state);
+    
+    // Validate that at least one render method is enabled.
+    if (!$form_state->getValue('twig_enabled') && !$form_state->getValue('react_enabled')) {
+      $form_state->setError($form['rendering']['twig_enabled'], $this->t('At least one render method must be enabled.'));
+    }
+    
+    // Validate default render method.
+    $default_method = $form_state->getValue('default_method');
+    if ($default_method === 'react' && !$form_state->getValue('react_enabled')) {
+      $form_state->setError($form['rendering']['default_method'], $this->t('Cannot set React as default when React rendering is disabled.'));
+    }
+    if ($default_method === 'twig' && !$form_state->getValue('twig_enabled')) {
+      $form_state->setError($form['rendering']['default_method'], $this->t('Cannot set Twig as default when Twig rendering is disabled.'));
+    }
+    
+    // Validate SDC component exists.
+    $sdc_id = $form_state->getValue('sdc_id');
+    if ($sdc_id) {
+      try {
+        $component = $this->componentManager->find($sdc_id);
+        if (!$component) {
+          $form_state->setError($form['sdc_mapping']['sdc_id'], $this->t('The selected SDC component does not exist.'));
+        }
+      }
+      catch (\Exception $e) {
+        $form_state->setError($form['sdc_mapping']['sdc_id'], $this->t('Error loading SDC component: @message', [
+          '@message' => $e->getMessage(),
+        ]));
+      }
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function save(array $form, FormStateInterface $form_state) {
+    /** @var \Drupal\component_entity\Entity\ComponentTypeInterface $component_type */
+    $component_type = $this->entity;
+    
+    // Set rendering configuration.
+    $component_type->set('rendering', [
+      'twig_enabled' => $form_state->getValue('twig_enabled'),
+      'react_enabled' => $form_state->getValue('react_enabled'),
+      'default_method' => $form_state->getValue('default_method'),
+      'react_library' => $form_state->getValue('react_library'),
+    ]);
+    
+    // Set other configurations.
+    $component_type->set('description', $form_state->getValue('description'));
+    $component_type->set('sdc_id', $form_state->getValue('sdc_id'));
+    $component_type->set('revision', $form_state->getValue('revision'));
+    $component_type->set('preview_mode', $form_state->getValue('preview_mode'));
+    $component_type->set('workflow', $form_state->getValue('workflow'));
+    $component_type->set('strict_schema', $form_state->getValue('strict_schema'));
+    $component_type->set('required_fields', $form_state->getValue('required_fields'));
+    $component_type->set('auto_sync', $form_state->getValue('auto_sync'));
+    $component_type->set('sync_slots', $form_state->getValue('sync_slots'));
+    
+    $status = $component_type->save();
+    
+    switch ($status) {
+      case SAVED_NEW:
+        $this->messenger->addMessage($this->t('Created the %label component type.', [
+          '%label' => $component_type->label(),
+        ]));
+        
+        // Trigger field sync if auto-sync is enabled.
+        if ($form_state->getValue('auto_sync')) {
+          $this->triggerFieldSync($component_type);
+        }
+        
+        break;
+        
+      default:
+        $this->messenger->addMessage($this->t('Saved the %label component type.', [
+          '%label' => $component_type->label(),
+        ]));
+        
+        // Clear cache for this component type.
+        $cache_manager = \Drupal::service('component_entity.cache_manager');
+        $cache_manager->invalidateBundleCache($component_type->id());
+    }
+    
+    // Redirect to the collection page.
+    $form_state->setRedirectUrl($component_type->toUrl('collection'));
+  }
+
+  /**
+   * AJAX callback to update component information.
+   */
+  public function updateComponentInfo(array &$form, FormStateInterface $form_state) {
+    return $form['sdc_mapping']['component_info'];
+  }
+
+  /**
+   * Builds component information display.
+   *
+   * @param string $sdc_id
+   *   The SDC component ID.
+   *
+   * @return array
+   *   Render array with component information.
+   */
+  protected function buildComponentInfo($sdc_id) {
+    $build = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'component-info-wrapper'],
+    ];
+    
+    try {
+      $component = $this->componentManager->find($sdc_id);
+      
+      if ($component) {
+        $metadata = $component->metadata;
+        
+        $build['info'] = [
+          '#type' => 'details',
+          '#title' => $this->t('Component Details'),
+          '#open' => TRUE,
+        ];
+        
+        $build['info']['name'] = [
+          '#type' => 'item',
+          '#title' => $this->t('Name'),
+          '#markup' => $metadata->name ?? $sdc_id,
+        ];
+        
+        if (!empty($metadata->description)) {
+          $build['info']['description'] = [
+            '#type' => 'item',
+            '#title' => $this->t('Description'),
+            '#markup' => $metadata->description,
+          ];
+        }
+        
+        // Show props.
+        if (!empty($metadata->props)) {
+          $props_list = [];
+          foreach ($metadata->props as $prop_name => $prop_schema) {
+            $type = $prop_schema->type ?? 'string';
+            $required = !empty($prop_schema->required) ? ' (required)' : '';
+            $props_list[] = $prop_name . ' [' . $type . ']' . $required;
+          }
+          
+          $build['info']['props'] = [
+            '#theme' => 'item_list',
+            '#title' => $this->t('Props'),
+            '#items' => $props_list,
+          ];
+        }
+        
+        // Show slots.
+        if (!empty($metadata->slots)) {
+          $slots_list = [];
+          foreach ($metadata->slots as $slot_name => $slot_schema) {
+            $title = $slot_schema->title ?? $slot_name;
+            $slots_list[] = $title . ' (' . $slot_name . ')';
+          }
+          
+          $build['info']['slots'] = [
+            '#theme' => 'item_list',
+            '#title' => $this->t('Slots'),
+            '#items' => $slots_list,
+          ];
+        }
+        
+        // Check for React component.
+        if ($this->hasReactComponent($sdc_id)) {
+          $build['info']['react'] = [
+            '#type' => 'item',
+            '#title' => $this->t('React Component'),
+            '#markup' => '<span style="color: green;">✓ ' . $this->t('React component found') . '</span>',
+          ];
+        }
+        else {
+          $build['info']['react'] = [
+            '#type' => 'item',
+            '#title' => $this->t('React Component'),
+            '#markup' => '<span style="color: gray;">✗ ' . $this->t('No React component found') . '</span>',
+          ];
+        }
+      }
+    }
+    catch (\Exception $e) {
+      $build['error'] = [
+        '#markup' => '<p style="color: red;">' . $this->t('Error loading component: @message', [
+          '@message' => $e->getMessage(),
+        ]) . '</p>',
+      ];
+    }
+    
+    return $build;
+  }
+
+  /**
+   * Gets available SDC components.
+   *
+   * @return array
+   *   Array of SDC component options.
+   */
+  protected function getAvailableSdcComponents() {
+    $options = [];
+    
+    try {
+      $components = $this->componentManager->getAllComponents();
+      
+      foreach ($components as $component_id => $component) {
+        $label = $component->metadata->name ?? $component_id;
+        $options[$component_id] = $label . ' (' . $component_id . ')';
+      }
+    }
+    catch (\Exception $e) {
+      $this->logger('component_entity')->error('Error loading SDC components: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+    }
+    
+    return $options;
+  }
+
+  /**
+   * Checks if a React component exists for the SDC component.
+   *
+   * @param string $sdc_id
+   *   The SDC component ID.
+   *
+   * @return bool
+   *   TRUE if React component exists.
+   */
+  protected function hasReactComponent($sdc_id) {
+    // Extract component name from ID.
+    $parts = explode(':', $sdc_id);
+    $component_name = end($parts);
+    
+    // Check common locations for React components.
+    $module_path = \Drupal::service('extension.list.module')->getPath('component_entity');
+    
+    $possible_files = [
+      $module_path . '/components/' . $component_name . '/' . $component_name . '.jsx',
+      $module_path . '/components/' . $component_name . '/' . $component_name . '.tsx',
+      $module_path . '/dist/js/' . $component_name . '.component.js',
+    ];
+    
+    foreach ($possible_files as $file) {
+      if (file_exists($file)) {
+        return TRUE;
+      }
+    }
+    
+    return FALSE;
+  }
+
+  /**
+   * Triggers field synchronization for a component type.
+   *
+   * @param \Drupal\component_entity\Entity\ComponentTypeInterface $component_type
+   *   The component type entity.
+   */
+  protected function triggerFieldSync($component_type) {
+    try {
+      $sync_service = \Drupal::service('component_entity.sync');
+      $sdc_id = $component_type->get('sdc_id');
+      
+      if ($sdc_id) {
+        $component = $this->componentManager->find($sdc_id);
+        if ($component) {
+          $sync_service->syncComponent($sdc_id, $component, TRUE);
+          $this->messenger->addMessage($this->t('Fields have been synchronized from the SDC component definition.'));
+        }
+      }
+    }
+    catch (\Exception $e) {
+      $this->messenger->addError($this->t('Error synchronizing fields: @message', [
+        '@message' => $e->getMessage(),
+      ]));
+    }
+  }
+
+}
