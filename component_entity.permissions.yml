@@ -1,0 +1,62 @@
+# General component permissions
+administer component entity settings:
+  title: 'Administer component entity settings'
+  description: 'Configure global settings for the Component Entity module.'
+  restrict access: true
+
+administer component types:
+  title: 'Administer component types'
+  description: 'Create, edit, and delete component types (bundles).'
+  restrict access: true
+
+view component entities:
+  title: 'View component entities'
+  description: 'View published component entities.'
+
+view unpublished component entities:
+  title: 'View unpublished component entities'
+  description: 'View unpublished component entities.'
+
+# Per-bundle permissions (dynamically generated)
+permission_callbacks:
+  - \Drupal\component_entity\ComponentPermissions::componentTypePermissions
+
+# Revision permissions
+view component revisions:
+  title: 'View component revisions'
+  description: 'View revisions for component entities.'
+
+revert component revisions:
+  title: 'Revert component revisions'
+  description: 'Revert component entities to earlier revisions.'
+
+delete component revisions:
+  title: 'Delete component revisions'
+  description: 'Delete revisions of component entities.'
+
+# Field permissions
+edit component entity fields:
+  title: 'Edit component entity fields'
+  description: 'Add and configure fields on component entity types.'
+  restrict access: true
+
+# Sync permissions
+sync sdc components:
+  title: 'Sync SDC components'
+  description: 'Synchronize SDC components with component entity types.'
+  restrict access: true
+
+# Preview permissions
+preview components:
+  title: 'Preview components'
+  description: 'Preview component entities before publishing.'
+
+# React-specific permissions
+configure react rendering:
+  title: 'Configure React rendering'
+  description: 'Configure React rendering options for components.'
+
+# API permissions
+access component api:
+  title: 'Access component API'
+  description: 'Access component data via API endpoints.'

@@ -1,0 +1,13 @@
+name: 'Component Entity'
+type: module
+description: 'Seamless bridge between SDC (Single Directory Components) and Drupal entity system with Twig and React rendering support.'
+package: 'User Interface'
+core_version_requirement: ^10.2 || ^11
+dependencies:
+  - drupal:field
+  - drupal:field_ui
+  - drupal:views
+  - drupal:user
+  - drupal:sdc
+  - drupal:json_field
+configure: entity.component_type.collection

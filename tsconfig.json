@@ -1,0 +1,82 @@
+{
+  "compilerOptions": {
+    // Language and Environment
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    
+    // Emit
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": true,
+    "noEmit": false,
+    "importHelpers": true,
+    "downlevelIteration": true,
+    
+    // Interop Constraints
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    
+    // Type Checking
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    
+    // Skip Lib Check
+    "skipLibCheck": true,
+    
+    // Advanced
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    
+    // Paths
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["components/*"],
+      "@utils/*": ["js/utils/*"],
+      "@types/*": ["types/*"]
+    },
+    
+    // Include Drupal globals
+    "types": [
+      "node",
+      "jest",
+      "@testing-library/jest-dom"
+    ]
+  },
+  "include": [
+    "components/**/*",
+    "js/**/*",
+    "types/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.stories.tsx",
+    "storybook-static"
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+# Add component action
+component.add_page:
+  route_name: entity.component.add_page
+  title: 'Add component'
+  appears_on:
+    - entity.component.collection
+
+# Add component type action
+component_type.add:
+  route_name: entity.component_type.add_form
+  title: 'Add component type'
+  appears_on:
+    - entity.component_type.collection
+
+# Sync action
+component_entity.sync_action:
+  route_name: component_entity.sync
+  title: 'Sync components'
+  appears_on:
+    - entity.component_type.collection

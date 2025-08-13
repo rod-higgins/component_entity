@@ -1,0 +1,162 @@
+/**
+ * component-admin.css
+ * Admin UI styles
+ */
+
+/* Component type listing */
+.component-types-list {
+  margin: 1rem 0;
+}
+
+.component-types-list table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.component-types-list th {
+  text-align: left;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.component-types-list td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.component-types-list .operations {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Render method indicator */
+.render-method-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.render-method-badge--twig {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.render-method-badge--react {
+  background: #fce7f3;
+  color: #a21caf;
+}
+
+/* Component form enhancements */
+.component-form-render-method {
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.component-form-render-method .form-radios {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.component-form-render-method .form-radio {
+  flex: 1;
+  padding: 1rem;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.component-form-render-method .form-radio:hover {
+  border-color: #9ca3af;
+}
+
+.component-form-render-method input[type="radio"]:checked + .form-radio {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* React settings panel */
+.react-settings-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 0.375rem;
+}
+
+.react-settings-panel__title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #92400e;
+}
+
+/* Hydration method selector */
+.hydration-method-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.hydration-method-option {
+  padding: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hydration-method-option:hover {
+  background: #f9fafb;
+}
+
+.hydration-method-option input[type="radio"]:checked + label {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.hydration-method-option__title {
+  font-weight: 600;
+  color: #111827;
+}
+
+.hydration-method-option__description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Accessibility improvements */
+.visually-hidden {
+  position: absolute !important;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  width: 1px;
+  height: 1px;
+  word-wrap: normal;
+}
+
+/* Print styles */
+@media print {
+  .component-preview__actions,
+  .component-reference-inline-edit__actions,
+  .component-loading__spinner {
+    display: none;
+  }
+  
+  .component-preview__container {
+    background: none;
+  }
+}

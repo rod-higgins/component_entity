@@ -1,0 +1,64 @@
+{#
+  component-preview.html.twig
+  Template for component preview in admin UI
+#}
+<div class="component-preview" data-component-type="{{ component_type }}">
+  <div class="component-preview__header">
+    <h3 class="component-preview__title">{{ 'Component Preview'|t }}</h3>
+    <div class="component-preview__actions">
+      <button class="component-preview__toggle" data-preview-mode="desktop" aria-pressed="true">
+        <span class="visually-hidden">{{ 'Desktop view'|t }}</span>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <rect x="2" y="4" width="16" height="10" stroke="currentColor" fill="none" stroke-width="2"/>
+          <line x1="8" y1="17" x2="12" y2="17" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </button>
+      <button class="component-preview__toggle" data-preview-mode="tablet" aria-pressed="false">
+        <span class="visually-hidden">{{ 'Tablet view'|t }}</span>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <rect x="5" y="2" width="10" height="16" stroke="currentColor" fill="none" stroke-width="2"/>
+        </svg>
+      </button>
+      <button class="component-preview__toggle" data-preview-mode="mobile" aria-pressed="false">
+        <span class="visually-hidden">{{ 'Mobile view'|t }}</span>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <rect x="6" y="2" width="8" height="16" stroke="currentColor" fill="none" stroke-width="2"/>
+        </svg>
+      </button>
+      {% if refresh_url %}
+        <button class="component-preview__refresh" data-refresh-url="{{ refresh_url }}">
+          <span class="visually-hidden">{{ 'Refresh preview'|t }}</span>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 3v2a5 5 0 0 0 0 10v2a7 7 0 1 1 0-14z"/>
+            <path d="M10 3l3 3-3 3"/>
+          </svg>
+        </button>
+      {% endif %}
+    </div>
+  </div>
+  
+  <div class="component-preview__container" data-preview-mode="desktop">
+    <div class="component-preview__frame">
+      {% if component_render %}
+        {{ component_render }}
+      {% else %}
+        <div class="component-preview__placeholder">
+          <p>{{ 'Save the component to see a preview'|t }}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  
+  <div class="component-preview__info">
+    <dl class="component-preview__metadata">
+      <dt>{{ 'Render method'|t }}:</dt>
+      <dd>{{ render_method|capitalize }}</dd>
+      <dt>{{ 'Component type'|t }}:</dt>
+      <dd>{{ component_type }}</dd>
+      {% if cache_tags %}
+        <dt>{{ 'Cache tags'|t }}:</dt>
+        <dd><code>{{ cache_tags|join(', ') }}</code></dd>
+      {% endif %}
+    </dl>
+  </div>
+</div>

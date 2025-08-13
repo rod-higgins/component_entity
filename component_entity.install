@@ -1,0 +1,150 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Component Entity module.
+ */
+
+use Drupal\Core\Field\BaseFieldDefinition;
+
+/**
+ * Implements hook_install().
+ */
+function component_entity_install() {
+  // Initial sync of SDC components.
+  \Drupal::service('component_entity.sync')->syncComponents();
+  
+  \Drupal::messenger()->addStatus(t('Component Entity module has been installed. SDC components have been synchronized.'));
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function component_entity_uninstall() {
+  // Clean up any remaining component configuration.
+  $config_factory = \Drupal::configFactory();
+  
+  // Delete all component type configurations.
+  foreach ($config_factory->listAll('component_entity.component_type.') as $config_name) {
+    $config_factory->getEditable($config_name)->delete();
+  }
+  
+  \Drupal::messenger()->addStatus(t('Component Entity module has been uninstalled.'));
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function component_entity_requirements($phase) {
+  $requirements = [];
+  
+  if ($phase === 'runtime') {
+    // Check if SDC is enabled.
+    $module_handler = \Drupal::moduleHandler();
+    
+    if (!$module_handler->moduleExists('sdc')) {
+      $requirements['component_entity_sdc'] = [
+        'title' => t('Component Entity: SDC module'),
+        'value' => t('Not enabled'),
+        'severity' => REQUIREMENT_ERROR,
+        'description' => t('The Component Entity module requires the SDC (Single Directory Components) module to be enabled.'),
+      ];
+    }
+    else {
+      $requirements['component_entity_sdc'] = [
+        'title' => t('Component Entity: SDC module'),
+        'value' => t('Enabled'),
+        'severity' => REQUIREMENT_OK,
+      ];
+    }
+    
+    // Check for React libraries.
+    $library_path = \Drupal::service('extension.list.module')->getPath('component_entity') . '/node_modules';
+    
+    if (!file_exists($library_path . '/react') || !file_exists($library_path . '/react-dom')) {
+      $requirements['component_entity_react'] = [
+        'title' => t('Component Entity: React libraries'),
+        'value' => t('Not installed'),
+        'severity' => REQUIREMENT_WARNING,
+        'description' => t('React libraries are not installed. Run "npm install" in the module directory to enable React rendering support.'),
+      ];
+    }
+    else {
+      $requirements['component_entity_react'] = [
+        'title' => t('Component Entity: React libraries'),
+        'value' => t('Installed'),
+        'severity' => REQUIREMENT_OK,
+      ];
+    }
+    
+    // Check for component sync status.
+    $sync_service = \Drupal::service('component_entity.sync');
+    $sync_status = $sync_service->getSyncStatus();
+    
+    if (!empty($sync_status['errors'])) {
+      $requirements['component_entity_sync'] = [
+        'title' => t('Component Entity: Sync status'),
+        'value' => t('@count errors', ['@count' => count($sync_status['errors'])]),
+        'severity' => REQUIREMENT_WARNING,
+        'description' => t('Some components could not be synchronized. Check the logs for details.'),
+      ];
+    }
+    else {
+      $requirements['component_entity_sync'] = [
+        'title' => t('Component Entity: Sync status'),
+        'value' => t('@count components synchronized', ['@count' => $sync_status['synced_count'] ?? 0]),
+        'severity' => REQUIREMENT_OK,
+      ];
+    }
+  }
+  
+  return $requirements;
+}
+
+/**
+ * Add render_method and react_config fields to component entities.
+ */
+function component_entity_update_10001() {
+  $field_storage_definition = BaseFieldDefinition::create('list_string')
+    ->setLabel(t('Render Method'))
+    ->setDescription(t('How this component should be rendered'))
+    ->setSettings([
+      'allowed_values' => [
+        'twig' => 'Twig (Server-side)',
+        'react' => 'React (Client-side)',
+      ],
+    ])
+    ->setDefaultValue('twig')
+    ->setRevisionable(TRUE);
+  
+  \Drupal::entityDefinitionUpdateManager()
+    ->installFieldStorageDefinition('render_method', 'component', 'component_entity', $field_storage_definition);
+  
+  $field_storage_definition = BaseFieldDefinition::create('json')
+    ->setLabel(t('React Configuration'))
+    ->setDescription(t('React-specific rendering configuration'))
+    ->setDefaultValue(['hydration' => 'full'])
+    ->setRevisionable(TRUE);
+  
+  \Drupal::entityDefinitionUpdateManager()
+    ->installFieldStorageDefinition('react_config', 'component', 'component_entity', $field_storage_definition);
+}
+
+/**
+ * Update component types with rendering configuration.
+ */
+function component_entity_update_10002() {
+  $component_types = \Drupal::entityTypeManager()
+    ->getStorage('component_type')
+    ->loadMultiple();
+  
+  foreach ($component_types as $component_type) {
+    // Set default rendering configuration.
+    $component_type->set('rendering', [
+      'twig_enabled' => TRUE,
+      'react_enabled' => FALSE,
+      'default_method' => 'twig',
+    ]);
+    $component_type->save();
+  }
+}

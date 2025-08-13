@@ -1,0 +1,285 @@
+<?php
+
+/**
+ * @file
+ * Component Entity module.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
+
+/**
+ * Implements hook_help().
+ */
+function component_entity_help($route_name, $route_match) {
+  switch ($route_name) {
+    case 'help.page.component_entity':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Component Entity module creates a seamless bridge between SDC (Single Directory Components) and Drupal\'s entity system, making SDC components first-class Drupal citizens with support for both Twig and React rendering.') . '</p>';
+      $output .= '<h3>' . t('Uses') . '</h3>';
+      $output .= '<dl>';
+      $output .= '<dt>' . t('Creating components') . '</dt>';
+      $output .= '<dd>' . t('Components are content entities that can be created, edited, and managed like any other content.') . '</dd>';
+      $output .= '<dt>' . t('Dual rendering') . '</dt>';
+      $output .= '<dd>' . t('Each component can be rendered using either Twig (server-side) or React (client-side), chosen per instance.') . '</dd>';
+      $output .= '<dt>' . t('SDC integration') . '</dt>';
+      $output .= '<dd>' . t('Components automatically sync with SDC component definitions, mapping props to fields.') . '</dd>';
+      $output .= '</dl>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function component_entity_theme() {
+  return [
+    'component_entity' => [
+      'render element' => 'elements',
+      'template' => 'component-entity',
+    ],
+    'component_react_wrapper' => [
+      'variables' => [
+        'component_id' => NULL,
+        'component_type' => NULL,
+        'props' => [],
+        'slots' => [],
+        'config' => [],
+        'attributes' => [],
+      ],
+      'template' => 'component-react-wrapper',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_entity_view().
+ */
+function component_entity_entity_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if ($entity->getEntityTypeId() === 'component') {
+    // Add cache contexts for render method.
+    $build['#cache']['contexts'][] = 'component_render_method';
+    
+    // Attach React library if needed.
+    if ($entity->getRenderMethod() === 'react') {
+      $build['#attached']['library'][] = 'component_entity/react-renderer';
+      
+      // Get component bundle to attach specific component library.
+      $bundle = $entity->bundle();
+      $library = "component_entity/component.$bundle";
+      
+      // Check if component library exists.
+      $library_discovery = \Drupal::service('library.discovery');
+      $libraries = $library_discovery->getLibrariesByExtension('component_entity');
+      if (isset($libraries["component.$bundle"])) {
+        $build['#attached']['library'][] = $library;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_type_build().
+ */
+function component_entity_entity_type_build(array &$entity_types) {
+  // Add our custom view builder to component entities.
+  if (isset($entity_types['component'])) {
+    $entity_types['component']->setViewBuilderClass('Drupal\component_entity\ComponentViewBuilder');
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for component_form.
+ */
+function component_entity_form_component_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // Add render method selection to the form.
+  $entity = $form_state->getFormObject()->getEntity();
+  
+  // Check if both render methods are available for this component type.
+  $component_type = \Drupal::entityTypeManager()
+    ->getStorage('component_type')
+    ->load($entity->bundle());
+  
+  if ($component_type && $component_type->hasDualRenderSupport()) {
+    $form['render_settings'] = [
+      '#type' => 'details',
+      '#title' => t('Render Settings'),
+      '#group' => 'advanced',
+      '#weight' => 100,
+      '#open' => TRUE,
+    ];
+    
+    $form['render_settings']['render_method'] = [
+      '#type' => 'radios',
+      '#title' => t('Render method'),
+      '#options' => [
+        'twig' => t('Server-side (Twig)'),
+        'react' => t('Client-side (React)'),
+      ],
+      '#default_value' => $entity->getRenderMethod() ?? 'twig',
+      '#description' => t('Choose how this component should be rendered.'),
+    ];
+    
+    // React-specific settings.
+    $form['render_settings']['react_settings'] = [
+      '#type' => 'container',
+      '#states' => [
+        'visible' => [
+          ':input[name="render_method"]' => ['value' => 'react'],
+        ],
+      ],
+    ];
+    
+    $react_config = $entity->getReactConfig();
+    
+    $form['render_settings']['react_settings']['hydration'] = [
+      '#type' => 'select',
+      '#title' => t('Hydration method'),
+      '#options' => [
+        'full' => t('Full hydration (interactive)'),
+        'partial' => t('Partial hydration (selective interactivity)'),
+        'none' => t('No hydration (static)'),
+      ],
+      '#default_value' => $react_config['hydration'] ?? 'full',
+      '#description' => t('Controls how React components are initialized on the client.'),
+    ];
+    
+    $form['render_settings']['react_settings']['progressive'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Progressive enhancement'),
+      '#default_value' => $react_config['progressive'] ?? FALSE,
+      '#description' => t('Render with Twig first, then enhance with React.'),
+    ];
+    
+    $form['render_settings']['react_settings']['lazy'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Lazy load component'),
+      '#default_value' => $react_config['lazy'] ?? FALSE,
+      '#description' => t('Load React component only when needed.'),
+    ];
+    
+    // Add submit handler to process React config.
+    $form['actions']['submit']['#submit'][] = 'component_entity_form_component_submit';
+  }
+}
+
+/**
+ * Submit handler for component form.
+ */
+function component_entity_form_component_submit($form, FormStateInterface $form_state) {
+  $entity = $form_state->getFormObject()->getEntity();
+  
+  // Build React config from form values.
+  $react_config = [
+    'hydration' => $form_state->getValue('hydration', 'full'),
+    'progressive' => $form_state->getValue('progressive', FALSE),
+    'lazy' => $form_state->getValue('lazy', FALSE),
+  ];
+  
+  $entity->set('react_config', $react_config);
+  $entity->save();
+}
+
+/**
+ * Implements hook_library_info_build().
+ */
+function component_entity_library_info_build() {
+  $libraries = [];
+  
+  // Discover all component JavaScript files.
+  $module_path = \Drupal::service('extension.list.module')->getPath('component_entity');
+  $components_path = $module_path . '/components';
+  
+  if (is_dir($components_path)) {
+    $component_dirs = scandir($components_path);
+    
+    foreach ($component_dirs as $component_dir) {
+      if ($component_dir[0] === '.') {
+        continue;
+      }
+      
+      $component_path = $components_path . '/' . $component_dir;
+      
+      if (is_dir($component_path)) {
+        // Check for compiled JS file.
+        $js_file = '/dist/js/' . $component_dir . '.component.js';
+        $js_path = $module_path . $js_file;
+        
+        if (file_exists($js_path)) {
+          $libraries['component.' . $component_dir] = [
+            'version' => '1.x',
+            'js' => [
+              $js_file => [],
+            ],
+            'dependencies' => [
+              'component_entity/react-renderer',
+            ],
+          ];
+        }
+        
+        // Check for component CSS.
+        $css_file = $component_path . '/' . $component_dir . '.css';
+        if (file_exists($css_file)) {
+          $libraries['component.' . $component_dir]['css']['component'] = [
+            'components/' . $component_dir . '/' . $component_dir . '.css' => [],
+          ];
+        }
+      }
+    }
+  }
+  
+  return $libraries;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function component_entity_cron() {
+  // Sync SDC components with component entity types.
+  \Drupal::service('component_entity.sync')->syncComponents();
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function component_entity_entity_presave(EntityInterface $entity) {
+  if ($entity->getEntityTypeId() === 'component') {
+    // Validate component data against SDC schema if available.
+    \Drupal::service('component_entity.validator')->validateComponent($entity);
+  }
+}
+
+/**
+ * Prepares variables for component entity templates.
+ *
+ * Default template: component-entity.html.twig.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - elements: An associative array containing the component entity
+ *     information and any fields attached to it.
+ *   - attributes: HTML attributes for the containing element.
+ */
+function template_preprocess_component_entity(array &$variables) {
+  $variables['component'] = $variables['elements']['#component'];
+  $variables['view_mode'] = $variables['elements']['#view_mode'];
+  
+  // Create attribute object.
+  $variables['attributes'] = $variables['elements']['#attributes'] ?? [];
+  $variables['attributes']['class'][] = 'component';
+  $variables['attributes']['class'][] = 'component--type-' . $variables['component']->bundle();
+  $variables['attributes']['class'][] = 'component--view-mode-' . $variables['view_mode'];
+  
+  // Add render method class.
+  $render_method = $variables['component']->getRenderMethod();
+  $variables['attributes']['class'][] = 'component--render-' . $render_method;
+  
+  // Helpful $content variable for templates.
+  $variables['content'] = [];
+  foreach (Element::children($variables['elements']) as $key) {
+    $variables['content'][$key] = $variables['elements'][$key];
+  }
+}

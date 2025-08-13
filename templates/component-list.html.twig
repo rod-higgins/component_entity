@@ -1,0 +1,30 @@
+{#
+  component-list.html.twig
+  Template for listing component entities
+#}
+{{ attach_library('component_entity/component-list') }}
+
+<div class="component-list">
+  {% if components is not empty %}
+    <div class="component-list__items">
+      {% for component in components %}
+        <div class="component-list__item">
+          {{ component }}
+        </div>
+      {% endfor %}
+    </div>
+    
+    {% if pager %}
+      {{ pager }}
+    {% endif %}
+  {% else %}
+    <div class="component-list__empty">
+      <p>{{ empty_message|default('No components found.'|t) }}</p>
+      {% if create_link %}
+        <a href="{{ create_link }}" class="button button--primary">
+          {{ 'Create a component'|t }}
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>

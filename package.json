@@ -1,0 +1,149 @@
+{
+  "name": "component-entity",
+  "version": "1.0.0",
+  "description": "Component Entity module - React and build tools for Drupal SDC components",
+  "author": "Rod Higgins <rod.higgins@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://www.drupal.org/project/component_entity",
+  "repository": {
+    "type": "git",
+    "url": "https://git.drupalcode.org/project/component_entity.git"
+  },
+  "keywords": [
+    "drupal",
+    "react",
+    "components",
+    "sdc",
+    "webpack",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "build": "npm run clean && npm run build:react && npm run build:css",
+    "build:react": "webpack --mode production",
+    "build:css": "postcss components/**/*.css --dir dist/css --ext .min.css",
+    "watch": "concurrently \"npm:watch:*\"",
+    "watch:react": "webpack --mode development --watch",
+    "watch:css": "postcss components/**/*.css --dir dist/css --ext .min.css --watch",
+    "dev": "webpack serve --mode development --open",
+    "clean": "rimraf dist",
+    "lint": "npm run lint:js && npm run lint:css",
+    "lint:js": "eslint 'components/**/*.{js,jsx,ts,tsx}' 'js/**/*.js'",
+    "lint:css": "stylelint 'components/**/*.css' 'css/**/*.css'",
+    "lint:fix": "npm run lint:js -- --fix && npm run lint:css -- --fix",
+    "format": "prettier --write '**/*.{js,jsx,ts,tsx,json,css,md}'",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "analyze": "webpack-bundle-analyzer dist/stats.json",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "classnames": "^2.3.2",
+    "prop-types": "^15.8.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.7",
+    "@babel/preset-env": "^7.23.7",
+    "@babel/preset-react": "^7.23.3",
+    "@babel/preset-typescript": "^7.23.3",
+    "@babel/plugin-transform-runtime": "^7.23.7",
+    "@babel/runtime": "^7.23.7",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.11",
+    "@storybook/addon-essentials": "^7.6.6",
+    "@storybook/addon-links": "^7.6.6",
+    "@storybook/react": "^7.6.6",
+    "@storybook/react-webpack5": "^7.6.6",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "autoprefixer": "^10.4.16",
+    "babel-loader": "^9.1.3",
+    "clean-webpack-plugin": "^4.0.0",
+    "concurrently": "^8.2.2",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.8.1",
+    "css-minimizer-webpack-plugin": "^5.0.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jest": "^27.6.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-prettier": "^5.1.2",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-storybook": "^0.6.15",
+    "file-loader": "^6.2.0",
+    "glob": "^10.3.10",
+    "html-webpack-plugin": "^5.6.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "mini-css-extract-plugin": "^2.7.6",
+    "postcss": "^8.4.32",
+    "postcss-cli": "^11.0.0",
+    "postcss-loader": "^7.3.4",
+    "postcss-preset-env": "^9.3.0",
+    "prettier": "^3.1.1",
+    "react-refresh": "^0.14.0",
+    "rimraf": "^5.0.5",
+    "storybook": "^7.6.6",
+    "style-loader": "^3.3.3",
+    "stylelint": "^16.0.2",
+    "stylelint-config-standard": "^35.0.0",
+    "stylelint-order": "^6.0.4",
+    "terser-webpack-plugin": "^5.3.10",
+    "ts-jest": "^29.1.1",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "url-loader": "^4.1.1",
+    "webpack": "^5.89.0",
+    "webpack-bundle-analyzer": "^4.10.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "webpack-merge": "^5.10.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/jest.setup.js"
+    ],
+    "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+      "\\.(jpg|jpeg|png|gif|svg)$": "<rootDir>/tests/__mocks__/fileMock.js"
+    },
+    "collectCoverageFrom": [
+      "components/**/*.{js,jsx,ts,tsx}",
+      "!components/**/*.stories.{js,jsx,ts,tsx}",
+      "!components/**/*.test.{js,jsx,ts,tsx}"
+    ]
+  }
+}

@@ -1,0 +1,59 @@
+# Component entity tasks
+entity.component.canonical:
+  route_name: entity.component.canonical
+  base_route: entity.component.canonical
+  title: 'View'
+
+entity.component.edit_form:
+  route_name: entity.component.edit_form
+  base_route: entity.component.canonical
+  title: 'Edit'
+  weight: 10
+
+entity.component.delete_form:
+  route_name: entity.component.delete_form
+  base_route: entity.component.canonical
+  title: 'Delete'
+  weight: 20
+
+entity.component.version_history:
+  route_name: entity.component.version_history
+  base_route: entity.component.canonical
+  title: 'Revisions'
+  weight: 30
+
+component_entity.preview:
+  route_name: component_entity.preview
+  base_route: entity.component.canonical
+  title: 'Preview'
+  weight: 5
+
+# Component type tasks
+entity.component_type.edit_form:
+  route_name: entity.component_type.edit_form
+  base_route: entity.component_type.edit_form
+  title: 'Edit'
+
+entity.component_type.fields:
+  route_name: entity.field_ui.field_storage_config_add_component
+  base_route: entity.component_type.edit_form
+  title: 'Manage fields'
+  weight: 10
+
+entity.component_type.form_display:
+  route_name: entity.entity_form_display.component.default
+  base_route: entity.component_type.edit_form
+  title: 'Manage form display'
+  weight: 20
+
+entity.component_type.display:
+  route_name: entity.entity_view_display.component.default
+  base_route: entity.component_type.edit_form
+  title: 'Manage display'
+  weight: 30
+
+entity.component_type.delete_form:
+  route_name: entity.component_type.delete_form
+  base_route: entity.component_type.edit_form
+  title: 'Delete'
+  weight: 40

@@ -1,0 +1,103 @@
+/**
+ * component-base.css
+ * Base styles for all component entities
+ */
+
+/* Component wrapper */
+.component {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.component--react {
+  min-height: 2rem; /* Prevent layout shift during React hydration */
+}
+
+.component__content {
+  position: relative;
+}
+
+.component__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #666;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* React component root */
+.component-react-root {
+  position: relative;
+  min-height: 1px; /* Prevent collapse */
+}
+
+.component-react-root[data-hydration="partial"] {
+  cursor: pointer;
+}
+
+.component-react-root[data-hydration="partial"]:hover {
+  outline: 2px dashed rgba(0, 123, 255, 0.3);
+  outline-offset: 2px;
+}
+
+/* Loading states */
+.component-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 2rem;
+}
+
+.component-loading__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: component-spin 1s linear infinite;
+}
+
+@keyframes component-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error states */
+.component-error {
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 0.375rem;
+  color: #991b1b;
+}
+
+.component-error summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.component-error pre {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
+
+/* Fallback content */
+.component-fallback {
+  padding: 1rem;
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  text-align: center;
+  color: #6b7280;
+}

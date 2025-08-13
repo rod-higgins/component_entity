@@ -1,0 +1,102 @@
+{
+  "name": "drupal/component_entity",
+  "description": "Seamless bridge between SDC (Single Directory Components) and Drupal entity system with Twig and React rendering support.",
+  "type": "drupal-module",
+  "license": "MIT",
+  "homepage": "https://www.drupal.org/project/component_entity",
+  "keywords": [
+    "Drupal",
+    "Component",
+    "SDC",
+    "React",
+    "Entity",
+    "Single Directory Components"
+  ],
+  "authors": [
+    {
+      "name": "Rod Higgins",
+      "email": "rod.higgins@gmail.com",
+      "role": "Maintainer"
+    }
+  ],
+  "support": {
+    "issues": "https://www.drupal.org/project/issues/component_entity",
+    "source": "https://git.drupalcode.org/project/component_entity"
+  },
+  "require": {
+    "php": ">=8.1",
+    "drupal/core": "^10.2 || ^11",
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "drupal/core-dev": "^10.2 || ^11",
+    "phpunit/phpunit": "^9.5",
+    "phpspec/prophecy-phpunit": "^2",
+    "symfony/css-selector": "^6.3",
+    "behat/mink": "^1.10",
+    "behat/mink-selenium2-driver": "^1.6",
+    "friends-of-behat/mink-browserkit-driver": "^1.6",
+    "mikey179/vfsstream": "^1.6",
+    "phpstan/phpstan": "^1.10",
+    "drupal/coder": "^8.3"
+  },
+  "suggest": {
+    "npm": "Required for building React components (npm install)",
+    "drupal/token": "Provides additional token support for component fields"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "extra": {
+    "drupal": {
+      "version": "1.0.x-dev",
+      "datestamp": "0",
+      "security-coverage": {
+        "status": "not-covered",
+        "message": "Development version"
+      }
+    },
+    "drush": {
+      "services": {
+        "drush.services.yml": "^10 || ^11 || ^12"
+      }
+    }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@npm-install"
+    ],
+    "post-update-cmd": [
+      "@npm-install"
+    ],
+    "npm-install": [
+      "cd modules/contrib/component_entity && npm install"
+    ],
+    "build": [
+      "cd modules/contrib/component_entity && npm run build"
+    ],
+    "watch": [
+      "cd modules/contrib/component_entity && npm run watch"
+    ],
+    "test": [
+      "@test-unit",
+      "@test-kernel",
+      "@test-functional"
+    ],
+    "test-unit": "phpunit --configuration core/phpunit.xml.dist --testsuite unit --group component_entity",
+    "test-kernel": "phpunit --configuration core/phpunit.xml.dist --testsuite kernel --group component_entity",
+    "test-functional": "phpunit --configuration core/phpunit.xml.dist --testsuite functional --group component_entity",
+    "phpcs": "phpcs --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,css,info,txt,md,yml modules/contrib/component_entity",
+    "phpcbf": "phpcbf --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,css,info,txt,md,yml modules/contrib/component_entity",
+    "phpstan": "phpstan analyse modules/contrib/component_entity"
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "composer/installers": true,
+      "drupal/core-composer-scaffold": true,
+      "drupal/core-project-message": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "cweagans/composer-patches": true
+    }
+  }
+}

@@ -1,0 +1,47 @@
+/**
+ * component-list.css
+ * Styles for component listings
+ */
+
+.component-list {
+  margin: 1rem 0;
+}
+
+.component-list__items {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+@media (max-width: 768px) {
+  .component-list__items {
+    grid-template-columns: 1fr;
+  }
+}
+
+.component-list__item {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.component-list__item:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.component-list__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  background-color: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.5rem;
+}
+
+.component-list__empty p {
+  margin-bottom: 1.5rem;
+  color: #6b7280;
+  font-size: 1.125rem;
+}

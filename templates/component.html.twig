@@ -1,0 +1,43 @@
+{#
+  component.html.twig
+  Default template for component entities
+#}
+{{ attach_library('component_entity/component-base') }}
+
+<article{{ attributes
+  .addClass('component')
+  .addClass('component--type-' ~ component.bundle|clean_class)
+  .addClass('component--view-mode-' ~ view_mode|clean_class)
+  .addClass(component.getRenderMethod == 'react' ? 'component--react' : 'component--twig')
+  .setAttribute('data-component-id', component.id)
+}}>
+  
+  {% if not page %}
+    <h2{{ title_attributes }}>
+      {{ label }}
+    </h2>
+  {% endif %}
+  
+  {% if display_submitted %}
+    <footer class="component__meta">
+      {{ author_picture }}
+      <div{{ author_attributes }}>
+        {% trans %}Submitted by {{ author_name }} on {{ date }}{% endtrans %}
+        {{ metadata }}
+      </div>
+    </footer>
+  {% endif %}
+  
+  <div{{ content_attributes.addClass('component__content') }}>
+    {{ content }}
+  </div>
+  
+  {% if component.getRenderMethod == 'react' %}
+    {# Additional React-specific markup if needed #}
+    <div class="component__react-meta visually-hidden" 
+         data-hydration="{{ component.getReactConfig.hydration }}"
+         data-lazy="{{ component.getReactConfig.lazy ? 'true' : 'false' }}">
+    </div>
+  {% endif %}
+  
+</article>

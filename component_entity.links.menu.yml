@@ -1,0 +1,31 @@
+# Main menu link for components
+entity.component.collection:
+  title: 'Components'
+  route_name: entity.component.collection
+  parent: system.admin_content
+  description: 'Manage component entities.'
+  weight: -10
+
+# Structure menu link
+entity.component_type.collection:
+  title: 'Component types'
+  route_name: entity.component_type.collection
+  parent: system.admin_structure
+  description: 'Manage component types and their fields.'
+  weight: 10
+
+# Configuration menu link
+component_entity.settings:
+  title: 'Component Entity settings'
+  route_name: component_entity.settings
+  parent: system.admin_config_content
+  description: 'Configure Component Entity module settings.'
+  weight: 10
+
+# Sync menu link
+component_entity.sync:
+  title: 'Sync SDC Components'
+  route_name: component_entity.sync
+  parent: system.admin_config_development
+  description: 'Synchronize SDC components with component entity types.'
+  weight: 20

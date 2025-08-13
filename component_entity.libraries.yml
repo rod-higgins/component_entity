@@ -1,0 +1,81 @@
+# Core React renderer library
+react-renderer:
+  version: 1.x
+  js:
+    js/component-renderer.js: {}
+    js/component-registry.js: {}
+  css:
+    component:
+      css/component-entity.css: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - component_entity/react
+    - component_entity/react-dom
+
+# React library (CDN or local)
+react:
+  version: 18.2.0
+  license:
+    name: MIT
+    url: https://github.com/facebook/react/blob/main/LICENSE
+    gpl-compatible: true
+  js:
+    https://unpkg.com/react@18/umd/react.production.min.js: 
+      type: external
+      minified: true
+      attributes:
+        crossorigin: anonymous
+
+# React DOM library (CDN or local)
+react-dom:
+  version: 18.2.0
+  license:
+    name: MIT
+    url: https://github.com/facebook/react/blob/main/LICENSE
+    gpl-compatible: true
+  js:
+    https://unpkg.com/react-dom@18/umd/react-dom.production.min.js:
+      type: external
+      minified: true
+      attributes:
+        crossorigin: anonymous
+  dependencies:
+    - component_entity/react
+
+# Admin UI enhancements
+admin:
+  version: 1.x
+  css:
+    theme:
+      css/component-entity-admin.css: {}
+  js:
+    js/component-admin.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/once
+
+# Component preview
+preview:
+  version: 1.x
+  js:
+    js/component-preview.js: {}
+  css:
+    component:
+      css/component-preview.css: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/jquery.once
+
+# Inline editing support
+inline-edit:
+  version: 1.x
+  js:
+    js/component-inline-edit.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/drupal.ajax
+    - core/jquery.once

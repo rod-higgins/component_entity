@@ -1,0 +1,66 @@
+/**
+ * component-reference.css
+ * Styles for component reference fields
+ */
+
+.field--component-reference {
+  margin: 1.5rem 0;
+}
+
+.field--component-reference .field__label {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #374151;
+}
+
+.field--component-reference .field__items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field--component-reference .field__item {
+  position: relative;
+}
+
+/* Inline editing styles */
+.component-reference-inline-edit {
+  position: relative;
+  padding: 1rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.5rem;
+  transition: border-color 0.2s ease;
+}
+
+.component-reference-inline-edit:hover {
+  border-color: #9ca3af;
+}
+
+.component-reference-inline-edit__actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.component-reference-inline-edit:hover .component-reference-inline-edit__actions {
+  opacity: 1;
+}
+
+.component-reference-inline-edit__button {
+  padding: 0.25rem 0.5rem;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.component-reference-inline-edit__button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}

@@ -1,0 +1,26 @@
+{#
+  field--component-reference.html.twig
+  Template for component reference fields
+#}
+{{ attach_library('component_entity/component-reference') }}
+
+<div{{ attributes.addClass('field--component-reference') }}>
+  {% if label_hidden %}
+    <div class="field__items">
+      {% for item in items %}
+        <div{{ item.attributes.addClass('field__item') }}>
+          {{ item.content }}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="field__label">{{ label }}</div>
+    <div class="field__items">
+      {% for item in items %}
+        <div{{ item.attributes.addClass('field__item') }}>
+          {{ item.content }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

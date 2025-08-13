@@ -1,0 +1,160 @@
+# Component entity routes
+entity.component.collection:
+  path: '/admin/content/components'
+  defaults:
+    _entity_list: 'component'
+    _title: 'Components'
+  requirements:
+    _permission: 'view component entities'
+  options:
+    _admin_route: TRUE
+
+entity.component.add_page:
+  path: '/component/add'
+  defaults:
+    _controller: '\Drupal\component_entity\Controller\ComponentController::addPage'
+    _title: 'Add component'
+  requirements:
+    _entity_create_any_access: 'component'
+
+entity.component.add_form:
+  path: '/component/add/{component_type}'
+  defaults:
+    _entity_form: component.add
+    _title_callback: '\Drupal\component_entity\Controller\ComponentController::addTitle'
+  requirements:
+    _entity_create_access: 'component:{component_type}'
+  options:
+    _admin_route: TRUE
+    parameters:
+      component_type:
+        type: entity:component_type
+
+entity.component.canonical:
+  path: '/component/{component}'
+  defaults:
+    _entity_view: 'component.full'
+    _title_callback: '\Drupal\Core\Entity\Controller\EntityController::title'
+  requirements:
+    _entity_access: 'component.view'
+    component: \d+
+
+entity.component.edit_form:
+  path: '/component/{component}/edit'
+  defaults:
+    _entity_form: 'component.edit'
+    _title: 'Edit component'
+  requirements:
+    _entity_access: 'component.update'
+  options:
+    _admin_route: TRUE
+
+entity.component.delete_form:
+  path: '/component/{component}/delete'
+  defaults:
+    _entity_form: 'component.delete'
+    _title: 'Delete component'
+  requirements:
+    _entity_access: 'component.delete'
+  options:
+    _admin_route: TRUE
+
+entity.component.version_history:
+  path: '/component/{component}/revisions'
+  defaults:
+    _title: 'Revisions'
+    _controller: '\Drupal\Core\Entity\Controller\EntityController::revisionOverview'
+  requirements:
+    _entity_access: 'component.view_revision'
+    component: \d+
+
+# Component type (bundle) routes
+entity.component_type.collection:
+  path: '/admin/structure/component-types'
+  defaults:
+    _entity_list: 'component_type'
+    _title: 'Component types'
+  requirements:
+    _permission: 'administer component types'
+  options:
+    _admin_route: TRUE
+
+entity.component_type.add_form:
+  path: '/admin/structure/component-types/add'
+  defaults:
+    _entity_form: 'component_type.add'
+    _title: 'Add component type'
+  requirements:
+    _permission: 'administer component types'
+  options:
+    _admin_route: TRUE
+
+entity.component_type.edit_form:
+  path: '/admin/structure/component-types/{component_type}'
+  defaults:
+    _entity_form: 'component_type.edit'
+    _title: 'Edit component type'
+  requirements:
+    _permission: 'administer component types'
+  options:
+    _admin_route: TRUE
+
+entity.component_type.delete_form:
+  path: '/admin/structure/component-types/{component_type}/delete'
+  defaults:
+    _entity_form: 'component_type.delete'
+    _title: 'Delete component type'
+  requirements:
+    _permission: 'administer component types'
+  options:
+    _admin_route: TRUE
+
+# Sync route
+component_entity.sync:
+  path: '/admin/config/component-entity/sync'
+  defaults:
+    _form: '\Drupal\component_entity\Form\ComponentSyncForm'
+    _title: 'Sync SDC Components'
+  requirements:
+    _permission: 'administer component types'
+  options:
+    _admin_route: TRUE
+
+# Preview route
+component_entity.preview:
+  path: '/component/{component}/preview'
+  defaults:
+    _controller: '\Drupal\component_entity\Controller\ComponentPreviewController::preview'
+    _title_callback: '\Drupal\component_entity\Controller\ComponentPreviewController::title'
+  requirements:
+    _entity_access: 'component.view'
+    _custom_access: '\Drupal\component_entity\Controller\ComponentPreviewController::access'
+  options:
+    parameters:
+      component:
+        type: entity:component
+
+# API routes for React components
+component_entity.api.component:
+  path: '/api/component/{component}'
+  defaults:
+    _controller: '\Drupal\component_entity\Controller\ComponentApiController::getComponent'
+  requirements:
+    _entity_access: 'component.view'
+    _format: 'json'
+  methods: [GET]
+  options:
+    parameters:
+      component:
+        type: entity:component
+
+# Settings form
+component_entity.settings:
+  path: '/admin/config/content/component-entity'
+  defaults:
+    _form: '\Drupal\component_entity\Form\ComponentEntitySettingsForm'
+    _title: 'Component Entity settings'
+  requirements:
+    _permission: 'administer component entity settings'
+  options:
+    _admin_route: TRUE
