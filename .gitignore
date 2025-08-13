@@ -1,0 +1,157 @@
+# Dependencies
+node_modules/
+vendor/
+bower_components/
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+*.map
+*.bundle.js
+*.bundle.css
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Environment and configuration
+.env
+.env.local
+.env.*.local
+*.local.yml
+settings.local.php
+services.local.yml
+
+# Testing and coverage
+coverage/
+.nyc_output/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.phpunit.result.cache
+tests/reports/
+
+# Caching
+.cache/
+.webpack-cache/
+.eslintcache
+.stylelintcache
+*.cache
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.tmp/
+
+# Documentation builds
+docs/_build/
+site/
+
+# Drupal specific
+files/
+private/
+sites/*/files
+sites/*/private
+sites/*/translations
+sites/*/tmp
+sites/*/settings.local.php
+sites/*/services.local.yml
+
+# Component Entity specific
+component_backups/
+generated_components/
+*.backup
+*.bak
+
+# React/TypeScript specific
+*.tsbuildinfo
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Storybook
+storybook-static/
+.storybook-out/
+
+# Package manager locks (choose one)
+# Uncomment the one you DON'T use
+package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# OS generated files
+Desktop.ini
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+ehthumbs_vista.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Compiled files
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.dylib
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Backup files
+*.orig
+*.rej
+*.backup
+*_backup
+*_old
+
+# Generated documentation
+/documentation/
+/api-docs/
+
+# Custom module generated files
+/components/**/*.generated.yml
+/components/**/*.generated.twig
+/components/**/*.generated.css
+
+# Keep these
+!.gitkeep
+!dist/.gitkeep
+!build/.gitkeep

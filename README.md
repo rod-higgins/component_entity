@@ -1,956 +1,10 @@
 # Component Entity Module
 
-A Drupal 11 module that creates a seamless bridge between SDC (Single Directory Components) and Drupal's entity system, making SDC components first-class Drupal citizens with support for both Twig and React rendering.
+> **Transform Drupal into a modern component-driven CMS while staying 100% Drupal-native**
 
-## Overview
+This module bridges Single Directory Components (SDC) with Drupal's entity system, providing a seamless way to manage components as content entities with dual Twig/React rendering capabilities.
 
-The Component Entity module transforms SDC components into regular Drupal content entities that behave exactly like any other content entity bundle (nodes, taxonomy terms, etc.). This approach follows established Drupal patterns completely while adding powerful component management capabilities.
-
-### Core Features
-
-- **True Drupal-Native Components**: Components are regular content entities with bundles
-- **Seamless SDC Integration**: Automatic synchronization between SDC definitions and entity bundles
-- **Dual Rendering Power**: Choose between Twig (server-side) or React (client-side) rendering per component instance
-- **Zero Learning Curve**: Uses standard Drupal patterns - Field UI, Views, permissions, etc.
-- **Maximum Flexibility**: Mix SSR and CSR rendering methods as needed
-- **Performance Optimized**: Lazy loading, progressive enhancement, and smart caching
-- **Future-Proof**: Built on pure Drupal core APIs with modern frontend support
-
-## What Does This Module Solve?
-
-### The Challenge
-
-Modern web development demands component-based architecture, but Drupal's traditional approach creates a disconnect between:
-
-- **Developers** who want to use modern component patterns (SDC, React)
-- **Site Builders** who need familiar Drupal tools (Field UI, Views)
-- **Content Editors** who require simple, intuitive interfaces
-- **End Users** who expect fast, interactive experiences
-
-Existing solutions often:
-- Require custom UI and workflows that don't follow Drupal patterns
-- Force a choice between server-side OR client-side rendering
-- Create proprietary systems that break on Drupal upgrades
-- Add unnecessary complexity to simple component management
-
-### The Solution
-
-Component Entity bridges this gap by making components behave exactly like standard Drupal content:
-
-```
-SDC Component Definition ←→ [Sync Bridge] ←→ Component Entity Bundle
-         ↓                                            ↓
-   Defines props/slots                    Has fields managed via Field UI
-         ↓                                            ↓
-   Twig OR React rendering                    Choose render method
-         ↓                                            ↓
-              Both output the same component HTML
-```
-
-## Architecture
-
-### SDC Discovery and Synchronization Process
-
-The module implements a sophisticated discovery and synchronization system that creates a true bi-directional bridge between SDC components and Drupal entities:
-
-#### 1. Component Discovery Process
-
-The discovery happens through multiple triggers:
-
-```php
-// Automatic discovery on cache clear
-hook_cache_flush() {
-  ComponentSyncService::discoverComponents();
-}
-
-// Manual discovery via Drush
-drush component-entity:sync
-
-// Programmatic discovery
-\Drupal::service('component_entity.sync')->syncComponents();
-```
-
-**Discovery Flow:**
-
-1. **SDC Scanner**: Scans all enabled modules/themes for `components/` directories
-2. **Component Parser**: Reads `.component.yml` files and extracts metadata
-3. **Bundle Generator**: Creates entity bundles with sanitized machine names
-4. **Field Mapper**: Maps SDC props to Drupal field types automatically
-5. **Schema Validator**: Validates component definitions against JSON Schema
-
-```yaml
-# SDC Component: components/hero/hero.component.yml
-name: Hero Banner
-props:
-  title:
-    type: string
-    required: true
-  image:
-    type: object
-    properties:
-      src: 
-        type: string
-      alt:
-        type: string
-  cta_buttons:
-    type: array
-    items:
-      type: object
-
-# Automatic Entity Bundle Creation:
-# Bundle ID: hero_banner
-# Fields created:
-# - field_title (string, required)
-# - field_image (json field with src/alt structure)
-# - field_cta_buttons (json field, multiple values)
-```
-
-#### 2. Bi-Directional Save Process
-
-The module maintains perfect synchronization between SDC definitions and entity configurations:
-
-**Forward Sync (SDC → Entity):**
-
-```php
-class ComponentSyncService {
-  
-  public function syncComponent($sdc_id, $component_definition) {
-    // 1. Generate bundle from SDC ID
-    $bundle = $this->generateBundleName($sdc_id);
-    
-    // 2. Create/update component type config entity
-    $component_type = ComponentType::load($bundle) ?? ComponentType::create(['id' => $bundle]);
-    $component_type->setSdcId($sdc_id);
-    $component_type->setLabel($component_definition['name']);
-    
-    // 3. Map props to fields
-    foreach ($component_definition['props'] as $prop_name => $prop_schema) {
-      $field_name = 'field_' . $prop_name;
-      $field_type = $this->mapSchemaToFieldType($prop_schema);
-      
-      // Create field storage if needed
-      if (!FieldStorageConfig::loadByName('component', $field_name)) {
-        FieldStorageConfig::create([
-          'entity_type' => 'component',
-          'field_name' => $field_name,
-          'type' => $field_type,
-          'cardinality' => $prop_schema['type'] === 'array' ? -1 : 1,
-        ])->save();
-      }
-      
-      // Create field instance
-      if (!FieldConfig::loadByName('component', $bundle, $field_name)) {
-        FieldConfig::create([
-          'entity_type' => 'component',
-          'bundle' => $bundle,
-          'field_name' => $field_name,
-          'label' => $prop_schema['title'] ?? $prop_name,
-          'required' => $prop_schema['required'] ?? FALSE,
-        ])->save();
-      }
-    }
-    
-    // 4. Configure rendering support
-    $component_type->setRenderingConfiguration([
-      'twig_enabled' => TRUE,
-      'react_enabled' => file_exists($this->getReactComponentPath($sdc_id)),
-      'default_method' => 'twig',
-    ]);
-    
-    $component_type->save();
-  }
-}
-```
-
-**Reverse Sync (Entity → SDC):**
-
-The revolutionary feature - create SDC components from Drupal's Field UI:
-
-```php
-class ComponentEntityFieldUIController {
-  
-  public function onFieldAdded($entity_type, $bundle, $field_name) {
-    if ($entity_type !== 'component') return;
-    
-    // Get component type
-    $component_type = ComponentType::load($bundle);
-    if (!$component_type->getSdcId()) {
-      // This is a Field UI created component - generate SDC
-      $this->generateSDCFromEntity($component_type);
-    }
-    
-    // Update existing SDC component
-    $this->updateSDCComponent($component_type, $field_name);
-  }
-  
-  protected function generateSDCFromEntity($component_type) {
-    $bundle = $component_type->id();
-    $label = $component_type->label();
-    
-    // Generate SDC directory structure
-    $path = "modules/custom/component_entity_generated/components/$bundle";
-    mkdir($path, 0755, TRUE);
-    
-    // Create component.yml from entity fields
-    $fields = \Drupal::entityFieldManager()->getFieldDefinitions('component', $bundle);
-    $props = [];
-    
-    foreach ($fields as $field_name => $field_def) {
-      if (strpos($field_name, 'field_') === 0) {
-        $prop_name = substr($field_name, 6);
-        $props[$prop_name] = [
-          'type' => $this->mapFieldTypeToSchema($field_def->getType()),
-          'title' => $field_def->getLabel(),
-          'required' => $field_def->isRequired(),
-        ];
-      }
-    }
-    
-    // Write component.yml
-    $component_yml = [
-      'name' => $label,
-      'props' => $props,
-      'rendering' => [
-        'twig' => TRUE,
-        'react' => FALSE,
-      ],
-    ];
-    
-    file_put_contents("$path/$bundle.component.yml", Yaml::dump($component_yml));
-    
-    // Generate default Twig template
-    $this->generateTwigTemplate($path, $bundle, $props);
-    
-    // Trigger webpack build for React if enabled
-    if ($component_type->isReactEnabled()) {
-      $this->triggerReactBuild($bundle);
-    }
-  }
-}
-```
-
-#### 3. Rendering Architecture
-
-The dual rendering system uses a sophisticated ViewBuilder that determines rendering method at runtime:
-
-```php
-class ComponentViewBuilder extends EntityViewBuilder {
-  
-  public function buildComponents(array &$build, array $entities, array $displays, $view_mode) {
-    foreach ($entities as $id => $entity) {
-      $render_method = $entity->getRenderMethod();
-      
-      if ($render_method === 'twig') {
-        $build[$id] = $this->buildTwigComponent($entity, $view_mode);
-      } 
-      elseif ($render_method === 'react') {
-        $build[$id] = $this->buildReactComponent($entity, $view_mode);
-      }
-    }
-  }
-  
-  protected function buildTwigComponent($entity, $view_mode) {
-    // Get SDC component
-    $component_id = $entity->bundle();
-    $component = $this->componentManager->find("component_entity:$component_id");
-    
-    // Map entity fields to component props
-    $props = $this->mapEntityToProps($entity);
-    
-    // Render using SDC
-    return [
-      '#type' => 'component',
-      '#component' => $component_id,
-      '#props' => $props,
-      '#cache' => [
-        'tags' => $entity->getCacheTags(),
-        'contexts' => ['render_method'],
-      ],
-    ];
-  }
-  
-  protected function buildReactComponent($entity, $view_mode) {
-    $props = $this->mapEntityToProps($entity);
-    $config = $entity->getReactConfig();
-    
-    return [
-      '#theme' => 'component_react_wrapper',
-      '#component_id' => $entity->uuid(),
-      '#component_type' => $entity->bundle(),
-      '#props' => $props,
-      '#config' => [
-        'hydration' => $config['hydration'] ?? 'full',
-        'progressive' => $config['progressive'] ?? FALSE,
-        'lazy' => $config['lazy'] ?? FALSE,
-      ],
-      '#attached' => [
-        'library' => [
-          'component_entity/react-renderer',
-          "component_entity/component.{$entity->bundle()}",
-        ],
-        'drupalSettings' => [
-          'componentEntity' => [
-            'components' => [
-              $entity->uuid() => [
-                'type' => $entity->bundle(),
-                'props' => $props,
-                'config' => $config,
-              ],
-            ],
-          ],
-        ],
-      ],
-    ];
-  }
-}
-```
-
-### Automatic Build Process
-
-#### Webpack Auto-Discovery and Building
-
-The module includes an intelligent webpack configuration that automatically discovers and builds components:
-
-```javascript
-// webpack.config.js - Auto-discovery system
-const glob = require('glob');
-
-// Auto-discover ALL component JSX/TSX files across the Drupal installation
-const componentEntries = {};
-
-// Scan module components
-const moduleComponents = glob.sync('modules/*/components/**/*.{jsx,tsx}');
-// Scan theme components  
-const themeComponents = glob.sync('themes/*/components/**/*.{jsx,tsx}');
-// Scan generated components
-const generatedComponents = glob.sync('modules/custom/component_entity_generated/components/**/*.{jsx,tsx}');
-
-[...moduleComponents, ...themeComponents, ...generatedComponents].forEach(file => {
-  const matches = file.match(/components\/([^\/]+)\/([^\/]+)\.(jsx|tsx)$/);
-  if (matches) {
-    const [, componentDir, componentName] = matches;
-    componentEntries[`${componentDir}.${componentName}`] = file;
-  }
-});
-
-// Webpack watches for new components and rebuilds automatically
-module.exports = {
-  entry: componentEntries,
-  watch: process.env.NODE_ENV === 'development',
-  watchOptions: {
-    ignored: /node_modules/,
-    aggregateTimeout: 300,
-    poll: 1000, // Check for changes every second
-  },
-  // ... rest of config
-};
-```
-
-#### Automatic React Component Generation
-
-When a component is created via Field UI, the module can generate a React component scaffold:
-
-```php
-class ReactComponentGenerator {
-  
-  public function generateFromEntity($component_type) {
-    $bundle = $component_type->id();
-    $fields = $this->getComponentFields($bundle);
-    
-    // Generate React component code
-    $jsx_code = $this->generateJSXTemplate($bundle, $fields);
-    
-    // Write to filesystem
-    $path = "modules/custom/component_entity_generated/components/$bundle";
-    file_put_contents("$path/$bundle.jsx", $jsx_code);
-    
-    // Trigger webpack build
-    $this->triggerWebpackBuild();
-  }
-  
-  protected function generateJSXTemplate($bundle, $fields) {
-    $componentName = $this->toPascalCase($bundle);
-    $props = array_map(fn($f) => $f->getName(), $fields);
-    
-    return <<<JSX
-import React from 'react';
-import PropTypes from 'prop-types';
-
-const $componentName = ({ " . implode(', ', $props) . " }) => {
-  return (
-    <div className="component-$bundle">
-      {/* Auto-generated component - customize as needed */}
-      " . $this->generateJSXFields($fields) . "
-    </div>
-  );
-};
-
-$componentName.propTypes = {
-  " . $this->generatePropTypes($fields) . "
-};
-
-// Auto-register with Drupal
-if (typeof Drupal !== 'undefined' && Drupal.componentEntity) {
-  Drupal.componentEntity.register('$bundle', $componentName);
-}
-
-export default $componentName;
-JSX;
-  }
-}
-```
-
-## For Site Creators: Building with Components
-
-Site creators can leverage the full power of Drupal's site building tools with components:
-
-### Creating Components via Field UI
-
-The revolutionary approach - create SDC components directly from Drupal's admin interface:
-
-1. **Navigate to Component Types**: `/admin/structure/component-types`
-2. **Add Component Type**: Click "Add component type"
-3. **Configure the Bundle**:
-   ```
-   Label: Hero Banner
-   Machine name: hero_banner
-   Description: A hero banner with title, image, and CTA
-   Rendering: ☑ Twig ☑ React
-   ```
-
-4. **Add Fields via Field UI**: `/admin/structure/component-types/hero_banner/fields`
-   - Add field → Text → "Title"
-   - Add field → Image → "Background Image"  
-   - Add field → Link → "Call to Action"
-   - Add field → List (text) → "Background Color" (blue|green|red)
-
-5. **Automatic SDC Generation**:
-   The module automatically creates:
-   ```yaml
-   # Generated at: modules/custom/component_entity_generated/components/hero_banner/hero_banner.component.yml
-   name: Hero Banner
-   props:
-     title:
-       type: string
-       required: true
-     background_image:
-       type: object
-     call_to_action:
-       type: object
-     background_color:
-       type: string
-       enum: ['blue', 'green', 'red']
-   ```
-
-6. **Automatic Template Generation**:
-   ```twig
-   {# Auto-generated template - customize as needed #}
-   <div class="hero-banner hero-banner--{{ background_color }}">
-     {% if background_image %}
-       <div class="hero-banner__image">
-         {{ background_image }}
-       </div>
-     {% endif %}
-     <h1 class="hero-banner__title">{{ title }}</h1>
-     {% if call_to_action %}
-       <a href="{{ call_to_action.url }}" class="hero-banner__cta">
-         {{ call_to_action.title }}
-       </a>
-     {% endif %}
-   </div>
-   ```
-
-### Using Components in Site Building
-
-#### Adding to Content Types
-
-1. **Add Component Reference Field**:
-   - Go to `/admin/structure/types/manage/article/fields`
-   - Add field → Reference → Component
-   - Select which component types to allow
-
-2. **Configure Display**:
-   - Manage display → Choose formatter
-   - Options: Default, Inline editable, Preview mode
-
-3. **Layout Builder Integration**:
-   ```php
-   // Components automatically available as Layout Builder blocks
-   - Each component type becomes a block
-   - Inline configuration supported
-   - Preview in Layout Builder
-   ```
-
-#### Views Integration
-
-Create dynamic component listings:
-
-1. **Create a View**: `/admin/structure/views/add`
-2. **Show**: Components
-3. **Filter by**: Component type, render method, author
-4. **Sort by**: Created date, title, custom fields
-5. **Display formats**: Grid, List, Table, REST export
-
-Example Views configuration:
-```yaml
-# Featured Components View
-Show: Components of type: Hero Banner, Card, CTA
-Filter: Published = Yes, Render method = React
-Sort: Sticky first, then Created date DESC
-Display: Grid of 3 columns
-```
-
-#### Permissions and Workflows
-
-Configure granular permissions per component type:
-
-```
-Component: Hero Banner
-☑ Create new Hero Banner components
-☑ Edit own Hero Banner components
-☐ Edit any Hero Banner components
-☑ Delete own Hero Banner components
-☐ Delete any Hero Banner components
-☑ View published Hero Banner components
-```
-
-Enable workflows:
-```php
-// Enable Content Moderation for components
-$workflow = Workflow::load('editorial');
-$workflow->getTypePlugin()->addEntityTypeAndBundle('component', 'hero_banner');
-$workflow->save();
-```
-
-## For Developers: Advanced Component Development
-
-Developers get a modern, flexible development environment with full control:
-
-### Component Development Workflow
-
-#### 1. SDC-First Development
-
-Create sophisticated SDC components with full schema:
-
-```yaml
-# components/dynamic_form/dynamic_form.component.yml
-name: Dynamic Form
-description: A form that adapts based on configuration
-props:
-  form_config:
-    type: object
-    properties:
-      method:
-        type: string
-        enum: ['GET', 'POST']
-      action:
-        type: string
-        format: uri
-      fields:
-        type: array
-        items:
-          type: object
-          properties:
-            type:
-              type: string
-              enum: ['text', 'email', 'select', 'textarea']
-            name:
-              type: string
-            label:
-              type: string
-            required:
-              type: boolean
-            options:
-              type: array
-  submission_handler:
-    type: string
-    enum: ['ajax', 'traditional', 'custom']
-slots:
-  form_header:
-    title: Form Header
-  form_footer:
-    title: Form Footer
-rendering:
-  twig: true
-  react: true
-  vue: false  # Future support
-```
-
-#### 2. React Component with TypeScript
-
-```typescript
-// components/dynamic_form/dynamic_form.tsx
-import React, { useState, FormEvent } from 'react';
-import { ComponentProps, FormField } from '@types/component_entity';
-
-interface DynamicFormProps extends ComponentProps {
-  form_config: {
-    method: 'GET' | 'POST';
-    action: string;
-    fields: FormField[];
-  };
-  submission_handler: 'ajax' | 'traditional' | 'custom';
-  slots: {
-    form_header?: string;
-    form_footer?: string;
-  };
-}
-
-const DynamicForm: React.FC<DynamicFormProps> = ({ 
-  form_config, 
-  submission_handler,
-  slots 
-}) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [submitting, setSubmitting] = useState(false);
-  
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (submission_handler === 'ajax') {
-      setSubmitting(true);
-      try {
-        const response = await fetch(form_config.action, {
-          method: form_config.method,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          body: JSON.stringify(formData),
-        });
-        
-        const result = await response.json();
-        
-        // Trigger Drupal behaviors
-        if (window.Drupal) {
-          window.Drupal.announce('Form submitted successfully');
-          window.Drupal.behaviors.componentEntity.formSubmitted(result);
-        }
-      } catch (error) {
-        console.error('Form submission error:', error);
-      } finally {
-        setSubmitting(false);
-      }
-    }
-  };
-  
-  return (
-    <form 
-      onSubmit={handleSubmit}
-      className="dynamic-form"
-      data-component="dynamic-form"
-    >
-      {slots.form_header && (
-        <div dangerouslySetInnerHTML={{ __html: slots.form_header }} />
-      )}
-      
-      {form_config.fields.map((field) => (
-        <FormField
-          key={field.name}
-          field={field}
-          value={formData[field.name]}
-          onChange={(value) => setFormData({
-            ...formData,
-            [field.name]: value
-          })}
-        />
-      ))}
-      
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Submitting...' : 'Submit'}
-      </button>
-      
-      {slots.form_footer && (
-        <div dangerouslySetInnerHTML={{ __html: slots.form_footer }} />
-      )}
-    </form>
-  );
-};
-
-// Auto-register with Drupal
-if (typeof window !== 'undefined' && window.Drupal?.componentEntity) {
-  window.Drupal.componentEntity.register('dynamic_form', DynamicForm);
-}
-
-export default DynamicForm;
-```
-
-#### 3. Progressive Enhancement Pattern
-
-Create components that work without JavaScript and enhance when React loads:
-
-```twig
-{# components/accordion/accordion.html.twig #}
-<div class="accordion" data-component="accordion" data-props='{{ props|json_encode }}'>
-  <details class="accordion__item">
-    <summary class="accordion__trigger">{{ title }}</summary>
-    <div class="accordion__content">
-      {% block content %}{% endblock %}
-    </div>
-  </details>
-</div>
-
-{# This works without JS, React enhances it when loaded #}
-```
-
-```javascript
-// components/accordion/accordion.jsx
-import React, { useState, useEffect } from 'react';
-
-const Accordion = ({ title, content, enhanced = true }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  
-  if (!enhanced) {
-    // Fallback to native HTML details element
-    return (
-      <details className="accordion__item">
-        <summary>{title}</summary>
-        <div dangerouslySetInnerHTML={{ __html: content }} />
-      </details>
-    );
-  }
-  
-  // Enhanced React version with animations
-  return (
-    <div className="accordion accordion--enhanced">
-      <button
-        className="accordion__trigger"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-expanded={isOpen}
-      >
-        {title}
-        <span className="accordion__icon">{isOpen ? '−' : '+'}</span>
-      </button>
-      <div 
-        className={`accordion__content ${isOpen ? 'is-open' : ''}`}
-        style={{
-          maxHeight: isOpen ? '1000px' : '0',
-          transition: 'max-height 0.3s ease'
-        }}
-      >
-        <div dangerouslySetInnerHTML={{ __html: content }} />
-      </div>
-    </div>
-  );
-};
-
-// Progressive enhancement handler
-Drupal.behaviors.accordionEnhancement = {
-  attach: function(context) {
-    const accordions = context.querySelectorAll('.accordion:not(.enhanced)');
-    accordions.forEach(el => {
-      const props = JSON.parse(el.dataset.props || '{}');
-      Drupal.componentEntity.hydrate('accordion', props, el, 'progressive');
-      el.classList.add('enhanced');
-    });
-  }
-};
-```
-
-### API and Integration
-
-#### Programmatic Component Management
-
-```php
-use Drupal\component_entity\Entity\ComponentEntity;
-use Drupal\component_entity\ComponentManager;
-
-class ComponentApiExample {
-  
-  /**
-   * Create a component programmatically.
-   */
-  public function createComponent() {
-    $component = ComponentEntity::create([
-      'type' => 'hero_banner',
-      'name' => 'Dynamic Hero',
-      'field_title' => 'Welcome, ' . \Drupal::currentUser()->getDisplayName(),
-      'field_subtitle' => $this->getDynamicSubtitle(),
-      'render_method' => $this->shouldUseReact() ? 'react' : 'twig',
-      'react_config' => [
-        'hydration' => 'partial',
-        'lazy' => TRUE,
-      ],
-    ]);
-    
-    $component->save();
-    return $component;
-  }
-  
-  /**
-   * Render a component with context.
-   */
-  public function renderComponent($component_id, array $context = []) {
-    $component = ComponentEntity::load($component_id);
-    
-    // Add context for rendering
-    $build = \Drupal::entityTypeManager()
-      ->getViewBuilder('component')
-      ->view($component, 'default');
-    
-    // Modify based on context
-    if ($context['ajax']) {
-      $build['#ajax'] = TRUE;
-      $build['#attached']['library'][] = 'component_entity/ajax-handler';
-    }
-    
-    return $build;
-  }
-}
-```
-
-#### Custom Field Formatters
-
-Create specialized formatters for component reference fields:
-
-```php
-namespace Drupal\mymodule\Plugin\Field\FieldFormatter;
-
-/**
- * @FieldFormatter(
- *   id = "component_carousel",
- *   label = @Translation("Component Carousel"),
- *   field_types = {
- *     "entity_reference"
- *   }
- * )
- */
-class ComponentCarouselFormatter extends EntityReferenceEntityFormatter {
-  
-  public function viewElements(FieldItemListInterface $items, $langcode) {
-    $elements = parent::viewElements($items, $langcode);
-    
-    // Wrap in carousel
-    return [
-      '#theme' => 'component_carousel',
-      '#items' => $elements,
-      '#settings' => $this->getSettings(),
-      '#attached' => [
-        'library' => ['mymodule/carousel'],
-      ],
-    ];
-  }
-}
-```
-
-## For Content Editors: Intuitive Component Management
-
-Content editors get a familiar, user-friendly interface for managing components:
-
-### Creating and Editing Components
-
-#### Quick Edit Interface
-
-1. **Inline Editing**: Click the pencil icon on any component to edit in place
-2. **Contextual Links**: Right-click for quick actions (Edit, Delete, Clone)
-3. **Drag-and-Drop**: Reorder components with visual feedback
-
-#### Component Creation Workflow
-
-1. **Choose Component Type**: Visual selector with previews
-   ```
-   [Hero Banner]    [Card Grid]    [Accordion]
-   Preview image    Preview image   Preview image
-   "Full-width      "Responsive     "Collapsible
-    hero section"    card layout"    content blocks"
-   ```
-
-2. **Fill in Fields**: Smart form with:
-   - Live preview as you type
-   - Media library integration for images
-   - Link autocomplete for internal content
-   - Color swatchers for theme colors
-
-3. **Choose Rendering Method**:
-   ```
-   How should this component behave?
-   
-   ○ Static (Better for SEO) 
-     Great for content that doesn't change
-     Loads faster, better for search engines
-   
-   ● Interactive (Better for user experience)
-     Allows animations and user interactions
-     Modern, dynamic experience
-   
-   [Advanced Options ▼]
-   ```
-
-#### Advanced Editor Features
-
-##### Component Library Browser
-
-Access a visual library of all available components:
-
-```
-Search: [___________] Filter by: [All Types ▼] [All Render Methods ▼]
-
-┌─────────────┬─────────────┬─────────────┐
-│ Hero Banner │ Card        │ Accordion   │
-│ ━━━━━━━━━━━ │ ━━━━━━━━━━━ │ ━━━━━━━━━━━ │
-│ [Preview]   │ [Preview]   │ [Preview]   │
-│             │             │             │
-│ 12 variants │ 8 variants  │ 4 variants  │
-│ [Use this]  │ [Use this]  │ [Use this]  │
-└─────────────┴─────────────┴─────────────┘
-```
-
-##### Smart Cloning
-
-Clone existing components with intelligent defaults:
-
-```php
-// Clone detection prevents duplicate content
-$clone = $component->createDuplicate();
-$clone->set('name', $component->label() . ' (Copy)');
-$clone->set('field_title', '[Draft] ' . $component->get('field_title')->value);
-$clone->setUnpublished(); // Safety first
-```
-
-##### Version Comparison
-
-Compare component versions side-by-side:
-
-```
-Version 3 (Current)          Version 2 (2 hours ago)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Title: "Summer Sale!"        Title: "Spring Sale!"
-Color: Red                   Color: Green
-CTA: "Shop Now"              CTA: "Learn More"
-                            
-[Revert to Version 2] [View Differences]
-```
-
-### Content Editor Settings
-
-#### Personal Preferences
-
-Each editor can customize their experience:
-
-```php
-// User preferences for component editing
-$config['component_entity.editor_preferences'] = [
-  'default_render_method' => 'twig',
-  'show_advanced_options' => FALSE,
-  'enable_live_preview' => TRUE,
-  'preview_breakpoints' => ['mobile', 'tablet', 'desktop'],
-  'favorite_components' => ['hero_banner', 'card', 'cta'],
-];
-```
-
-#### Keyboard Shortcuts
-
-Productivity shortcuts for power users:
-
-```
-Ctrl+Shift+C - Create new component
-Ctrl+Shift+E - Edit current component  
-Ctrl+Shift+D - Duplicate component
-Ctrl+Shift+P - Toggle preview mode
-Ctrl+Shift+R - Toggle render method
-```
-
-## How Does This Module Solve It?
+## Key Features
 
 ### 1. Drupal-Native Architecture
 
@@ -1164,98 +218,559 @@ rendering:
   react: true
 ```
 
-2. **Create Twig template**:
-```twig
-{# modules/custom/mymodule/components/card/card.html.twig #}
-<div class="card">
-  <img src="{{ image.src }}" alt="{{ image.alt }}">
-  <h3>{{ title }}</h3>
-  <p>{{ description }}</p>
-  <div class="card__footer">
-    {% block footer %}{% endblock %}
-  </div>
-</div>
+2. **Sync with entity system**:
+```bash
+drush component-entity:sync
 ```
 
-3. **Create React component** (optional):
-```javascript
-// modules/custom/mymodule/components/card/card.jsx
-import React from 'react';
+3. **Add fields via Field UI**:
+- Navigate to `/admin/structure/component-types/card/fields`
+- Add corresponding fields
+- Configure field widgets and formatters
 
-const Card = ({ title, description, image, slots }) => {
-  return (
-    <div className="card">
-      <img src={image.src} alt={image.alt} />
-      <h3>{title}</h3>
-      <p>{description}</p>
-      <div className="card__footer" 
-           dangerouslySetInnerHTML={{ __html: slots.footer }} />
-    </div>
-  );
-};
+4. **Create React component** (optional):
+```jsx
+// components/card/card.jsx
+const Card = ({ title, description, image, slots }) => (
+  <div className="card">
+    {image && <img src={image.src} alt={image.alt} />}
+    <h3>{title}</h3>
+    <p>{description}</p>
+    {slots?.footer && <div className="card__footer">{slots.footer}</div>}
+  </div>
+);
+
+// Auto-register with Drupal
+if (typeof Drupal !== 'undefined' && Drupal.componentEntity) {
+  Drupal.componentEntity.register('card', Card);
+}
 
 export default Card;
 ```
 
-4. **Sync and use**:
+### Using Components
+
+#### In Content Types
+```php
+// Add a component reference field to article content type
+$fields['field_components'] = BaseFieldDefinition::create('entity_reference')
+  ->setLabel(t('Components'))
+  ->setSetting('target_type', 'component')
+  ->setSetting('handler_settings', ['target_bundles' => ['hero_banner', 'card']])
+  ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
+```
+
+#### In Twig Templates
+```twig
+{# node--article.html.twig #}
+{% for component in content.field_components %}
+  {{ component }}
+{% endfor %}
+```
+
+#### Via Views
+Create dynamic component listings with Views UI:
+- Create new view of "Component" entities
+- Filter by component type
+- Add contextual filters
+- Configure display modes
+
+## Scenarios
+
+### Scenario 1: Content Editor Workflow
+
+When a content editor creates a component and chooses React rendering, here's the complete flow:
+
+#### Step 1: Component Creation
+The editor creates a new "Hero Banner" component via the UI and selects "React" for rendering:
+
+```yaml
+# The system auto-generates (optional):
+# modules/custom/component_entity_generated/components/hero_banner/hero_banner.jsx
+```
+
+```javascript
+// Auto-generated React component scaffold
+const HeroBanner = ({ title, subtitle, backgroundColor }) => {
+  return (
+    <div className={`hero-banner hero-banner--${backgroundColor}`}>
+      <h1>{title}</h1>
+      <p>{subtitle}</p>
+    </div>
+  );
+};
+
+// Auto-register with Drupal
+if (typeof Drupal !== 'undefined' && Drupal.componentEntity) {
+  Drupal.componentEntity.register('hero_banner', HeroBanner);
+}
+```
+
+#### Step 2: Build Process
+The webpack build tools:
+1. **Compile JSX → JavaScript** that browsers understand
+2. **Bundle** with dependencies
+3. **Register as Drupal Library** automatically:
+
+```yaml
+# Auto-generated in component_entity.libraries.yml
+component.hero_banner:
+  js:
+    dist/components/hero_banner.js: {}
+  dependencies:
+    - core/react
+    - component_entity/react-renderer
+```
+
+#### Step 3: Runtime Serving
+When a visitor views the page:
+
+1. **Drupal renders initial HTML**:
+```html
+<div data-component-entity="hero_banner" 
+     data-props='{"title":"Welcome","subtitle":"Hello World","backgroundColor":"blue"}'>
+  <!-- Optional pre-rendered HTML for SEO -->
+  <div class="hero-banner hero-banner--blue">
+    <h1>Welcome</h1>
+    <p>Hello World</p>
+  </div>
+</div>
+```
+
+2. **React takes over** based on hydration strategy
+3. **Component becomes interactive**
+
+### Scenario 2: Hydration Strategies in Action
+
+The module provides three hydration methods that content editors can choose per component instance:
+
+#### Full Hydration (Maximum Interactivity)
+Best for: Interactive dashboards, forms, real-time updates
+
+```javascript
+// Component is immediately interactive
+ReactDOM.hydrate(<HeroBanner {...props} />, element);
+
+// Use case: Live stock ticker
+const StockTicker = ({ symbols }) => {
+  const [prices, setPrices] = useState({});
+  
+  useEffect(() => {
+    const ws = new WebSocket('wss://stocks.example.com');
+    ws.onmessage = (e) => setPrices(JSON.parse(e.data));
+    return () => ws.close();
+  }, []);
+  
+  return (
+    <div className="stock-ticker">
+      {symbols.map(symbol => (
+        <span key={symbol}>{symbol}: ${prices[symbol] || '...'}</span>
+      ))}
+    </div>
+  );
+};
+```
+
+#### Partial Hydration (Performance Optimized)
+Best for: Content with some interactive elements
+
+```javascript
+// Static until user interaction
+element.addEventListener('mouseenter', () => {
+  ReactDOM.render(<InteractiveGallery {...props} />, element);
+}, { once: true });
+
+// Use case: Product gallery that becomes interactive on hover
+const ProductGallery = ({ images, lazy }) => {
+  if (lazy) {
+    return <img src={images[0].src} alt="Click to view gallery" />;
+  }
+  
+  // Full interactive gallery after hydration
+  return <InteractiveGallery images={images} />;
+};
+```
+
+#### No Hydration (SEO Focused)
+Best for: Static content, better SEO, fastest initial load
+
+```html
+<!-- Server renders only, no JavaScript execution -->
+<div class="hero-banner hero-banner--blue">
+  <h1>Welcome</h1>
+  <p>Pure HTML, perfect for SEO</p>
+</div>
+```
+
+### Scenario 3: API-Driven Interactive Components
+
+Components automatically get REST/JSON:API endpoints as standard Drupal entities:
+
+#### Fetching Component Data
+```javascript
+// React component with live data fetching
+const DynamicHero = ({ drupalContext, title, subtitle }) => {
+  const [data, setData] = useState({ title, subtitle });
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Fetch fresh data
+  const refresh = async () => {
+    const response = await fetch(
+      `/jsonapi/component/hero_banner/${drupalContext.entityId}`
+    );
+    const json = await response.json();
+    setData({
+      title: json.data.attributes.field_title,
+      subtitle: json.data.attributes.field_subtitle
+    });
+  };
+  
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="hero-banner">
+      <h1>{data.title}</h1>
+      <p>{data.subtitle}</p>
+      <button onClick={refresh}>Refresh</button>
+    </div>
+  );
+};
+```
+
+#### Inline Editing with Permissions
+```javascript
+// Component with inline editing capabilities
+const EditableHero = ({ drupalContext, title, subtitle }) => {
+  const [data, setData] = useState({ title, subtitle });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Save changes via JSON:API
+  const save = async (newData) => {
+    setIsSaving(true);
+    
+    try {
+      const response = await fetch(
+        `/jsonapi/component/hero_banner/${drupalContext.entityId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/vnd.api+json',
+            'X-CSRF-Token': drupalSettings.csrfToken
+          },
+          body: JSON.stringify({
+            data: {
+              type: 'component--hero_banner',
+              id: drupalContext.entityId,
+              attributes: {
+                field_title: newData.title,
+                field_subtitle: newData.subtitle
+              }
+            }
+          })
+        }
+      );
+      
+      if (response.ok) {
+        setData(newData);
+        setIsEditing(false);
+        
+        // Show success message
+        Drupal.message('Component updated successfully');
+      }
+    } catch (error) {
+      Drupal.message('Error saving component', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Check edit permissions
+  const canEdit = drupalContext.permissions?.includes('edit any component entities');
+  
+  if (isEditing) {
+    return (
+      <EditForm 
+        data={data} 
+        onSave={save} 
+        onCancel={() => setIsEditing(false)}
+        isSaving={isSaving}
+      />
+    );
+  }
+  
+  return (
+    <div className="hero-banner">
+      <h1>{data.title}</h1>
+      <p>{data.subtitle}</p>
+      {canEdit && (
+        <button 
+          onClick={() => setIsEditing(true)}
+          className="hero-banner__edit"
+        >
+          Edit
+        </button>
+      )}
+    </div>
+  );
+};
+```
+
+### Scenario 4: Real-time Collaborative Editing
+
+For advanced use cases with WebSocket support:
+
+```javascript
+// Component with real-time updates across users
+const CollaborativeComponent = ({ drupalContext, initialData }) => {
+  const [data, setData] = useState(initialData);
+  const [activeUsers, setActiveUsers] = useState([]);
+  
+  useEffect(() => {
+    // Connect to WebSocket for real-time updates
+    const ws = new WebSocket(`wss://yoursite.com/component-updates`);
+    
+    // Join component room
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        action: 'join',
+        componentId: drupalContext.entityId
+      }));
+    };
+    
+    // Handle incoming updates
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      
+      switch (message.type) {
+        case 'update':
+          if (message.componentId === drupalContext.entityId) {
+            setData(message.data);
+            // Show who made the change
+            Drupal.message(`Updated by ${message.user}`);
+          }
+          break;
+          
+        case 'user-joined':
+          setActiveUsers(prev => [...prev, message.user]);
+          break;
+          
+        case 'user-left':
+          setActiveUsers(prev => prev.filter(u => u !== message.user));
+          break;
+      }
+    };
+    
+    return () => ws.close();
+  }, [drupalContext.entityId]);
+  
+  return (
+    <div className="collaborative-component">
+      <div className="active-users">
+        {activeUsers.map(user => (
+          <span key={user} className="user-avatar" title={user}>
+            {user[0]}
+          </span>
+        ))}
+      </div>
+      <div className="content">
+        {/* Component content */}
+      </div>
+    </div>
+  );
+};
+```
+
+### Scenario 5: Progressive Enhancement Pattern
+
+Start with server-rendered HTML, enhance with React when needed:
+
+```javascript
+// Progressive enhancement component
+const ProgressiveForm = ({ drupalContext }) => {
+  const [enhanced, setEnhanced] = useState(false);
+  const [formData, setFormData] = useState({});
+  
+  useEffect(() => {
+    // Check if we should enhance
+    if ('IntersectionObserver' in window && window.matchMedia('(min-width: 768px)').matches) {
+      setEnhanced(true);
+    }
+  }, []);
+  
+  if (!enhanced) {
+    // Return null to keep server-rendered HTML
+    return null;
+  }
+  
+  // Enhanced version with React
+  return (
+    <form className="enhanced-form">
+      {/* Rich interactive form */}
+    </form>
+  );
+};
+
+// Register with progressive enhancement
+Drupal.behaviors.progressiveComponents = {
+  attach: function(context) {
+    // Only enhance if JavaScript is enabled and conditions are met
+    const components = context.querySelectorAll('[data-progressive-enhance]');
+    
+    components.forEach(element => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            // Enhance when component comes into view
+            const props = JSON.parse(element.dataset.props);
+            ReactDOM.render(<ProgressiveForm {...props} />, element);
+            observer.unobserve(element);
+          }
+        });
+      });
+      
+      observer.observe(element);
+    });
+  }
+};
+```
+
+### Complete Architecture Flow
+
+1. **Build Time**:
+   - JSX components are discovered by webpack
+   - Compiled to browser-compatible JavaScript
+   - Registered as Drupal libraries
+   - No separate React server needed
+
+2. **Request Time**:
+   - Drupal serves the page with embedded component data
+   - Initial HTML is rendered server-side (SEO-friendly)
+   - React library and component files load as standard Drupal assets
+   - CSRF tokens and permissions passed via drupalSettings
+
+3. **Runtime**:
+   - Components hydrate based on their configuration
+   - React components can fetch/update via JSON:API
+   - All Drupal permissions and access controls apply
+   - Cache invalidation happens automatically
+
+4. **Benefits**:
+   - ✅ SEO-friendly with server-side rendering
+   - ✅ Interactive when needed with React
+   - ✅ No separate Node.js server required
+   - ✅ Full Drupal permission system integration
+   - ✅ Standard Drupal caching and performance
+   - ✅ Familiar Drupal development patterns
+
+## API Reference
+
+### PHP Services
+
+```php
+// Component synchronization service
+$sync_service = \Drupal::service('component_entity.sync');
+$sync_service->syncAll();
+
+// React generator service
+$generator = \Drupal::service('component_entity.react_generator');
+$generator->generateComponent($component_type);
+
+// Component renderer
+$renderer = \Drupal::service('component_entity.renderer');
+$build = $renderer->render($component_entity, 'full');
+```
+
+### JavaScript API
+
+```javascript
+// Register React component
+Drupal.componentEntity.register('hero_banner', HeroBannerComponent);
+
+// Render all components on page
+Drupal.componentEntity.renderAll(context);
+
+// Render specific component
+Drupal.componentEntity.render(element, props);
+
+// Refresh component data
+Drupal.componentEntity.refresh('component-id');
+```
+
+### Drush Commands
+
 ```bash
-# Sync the new component
+# Sync all SDC components
 drush component-entity:sync
 
-# Clear caches
-drush cr
+# Sync specific component
+drush component-entity:sync hero_banner
+
+# Generate React component
+drush component-entity:generate-react hero_banner
+
+# List all component types
+drush component-entity:list
+
+# Clear component caches
+drush component-entity:cache-clear
 ```
 
-### Using Components in Code
+### Hooks
 
-#### Programmatic Creation
 ```php
-use Drupal\component_entity\Entity\ComponentEntity;
+/**
+ * Alter component field mapping.
+ */
+function hook_component_entity_field_mapping_alter(&$mapping, $component_definition) {
+  // Custom field mapping logic
+}
 
-$component = ComponentEntity::create([
-  'type' => 'hero_banner',
-  'name' => 'Homepage Hero',
-  'field_title' => 'Welcome to Our Site',
-  'field_subtitle' => 'Discover amazing content',
-  'field_background_color' => 'blue',
-  'render_method' => 'twig',
-]);
-$component->save();
+/**
+ * React component build alter.
+ */
+function hook_component_entity_react_build_alter(&$build, $entity, $context) {
+  // Modify React component build array
+}
+
+/**
+ * Component sync alter.
+ */
+function hook_component_entity_sync_alter(&$components) {
+  // Modify components before sync
+}
 ```
 
-#### Rendering in Templates
-```twig
-{# In a node template #}
-{{ content.field_components }}
+### Events
 
-{# Or render specific component #}
-{% set component = node.field_hero_component.entity %}
-{{ component|view('full') }}
-```
-
-#### Entity Reference Usage
 ```php
-// Add component reference field to node type
-$field_storage = FieldStorageConfig::create([
-  'field_name' => 'field_components',
-  'entity_type' => 'node',
-  'type' => 'entity_reference',
-  'settings' => [
-    'target_type' => 'component',
-  ],
-]);
-$field_storage->save();
+// Component rendered event
+class ComponentRenderedEvent extends Event {
+  const NAME = 'component_entity.rendered';
+}
+
+// Component synchronized event  
+class ComponentSynchronizedEvent extends Event {
+  const NAME = 'component_entity.synchronized';
+}
 ```
 
-### Extending the Module
+### Custom Component Sync
 
-#### Custom Sync Handler
 ```php
-namespace Drupal\mymodule\ComponentSync;
+namespace Drupal\mymodule\Plugin\ComponentSync;
 
-use Drupal\component_entity\ComponentSync\SyncHandlerInterface;
-
-class CustomSyncHandler implements SyncHandlerInterface {
+/**
+ * @ComponentSync(
+ *   id = "custom_sync",
+ *   label = @Translation("Custom synchronization")
+ * )
+ */
+class CustomSync extends ComponentSyncBase {
   
   public function shouldSync($component_definition) {
     // Custom logic for component sync
@@ -1274,7 +789,8 @@ class CustomSyncHandler implements SyncHandlerInterface {
 }
 ```
 
-#### React Component Registry
+### React Component Registry
+
 ```javascript
 // Register custom React components
 Drupal.componentEntity.register('hero_banner', HeroBannerComponent);
@@ -1287,17 +803,6 @@ Drupal.behaviors.myThemeComponents = {
   }
 };
 ```
-
-### Module Architecture Diagrams
-
-#### System Architecture
-[Space reserved for SVG diagram showing overall system architecture]
-
-#### Data Flow Diagram
-[Space reserved for SVG diagram showing data flow between SDC, Entity System, and Rendering]
-
-#### Component Lifecycle
-[Space reserved for SVG diagram showing component lifecycle from creation to rendering]
 
 ## Roadmap
 

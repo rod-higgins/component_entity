@@ -1,49 +1,39 @@
 {
   "compilerOptions": {
-    // Language and Environment
+    /* Language and Environment */
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
+    
+    /* Modules */
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
     
-    // Emit
+    /* Emit */
+    "outDir": "./dist",
+    "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
     "removeComments": true,
-    "noEmit": false,
-    "importHelpers": true,
-    "downlevelIteration": true,
     
-    // Interop Constraints
-    "isolatedModules": true,
+    /* Interop Constraints */
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
+    "isolatedModules": true,
     
-    // Type Checking
+    /* Type Checking */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": false,
-    "allowUnusedLabels": false,
-    "allowUnreachableCode": false,
     
-    // Skip Lib Check
+    /* Skip Type Checking */
     "skipLibCheck": true,
     
-    // Advanced
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    
-    // Paths
+    /* Paths */
     "baseUrl": ".",
     "paths": {
       "@components/*": ["components/*"],
@@ -51,19 +41,16 @@
       "@types/*": ["types/*"]
     },
     
-    // Include Drupal globals
-    "types": [
-      "node",
-      "jest",
-      "@testing-library/jest-dom"
-    ]
+    /* Additional Types */
+    "types": ["node", "jest"]
   },
+  
   "include": [
     "components/**/*",
     "js/**/*",
-    "types/**/*",
-    "tests/**/*"
+    "types/**/*"
   ],
+  
   "exclude": [
     "node_modules",
     "dist",
@@ -71,12 +58,7 @@
     "coverage",
     "**/*.spec.ts",
     "**/*.test.ts",
-    "**/*.stories.tsx",
-    "storybook-static"
-  ],
-  "ts-node": {
-    "compilerOptions": {
-      "module": "commonjs"
-    }
-  }
+    "**/*.test.tsx",
+    "**/*.stories.tsx"
+  ]
 }

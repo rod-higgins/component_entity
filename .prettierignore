@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+coverage/
+storybook-static/
+
+# Cache
+.cache/
+.webpack-cache/
+
+# Generated files
+*.min.js
+*.min.css
+*.generated.*
+
+# Drupal files
+sites/*/files/
+sites/*/private/
+
+# Other
+*.md
+*.lock
+*.log
