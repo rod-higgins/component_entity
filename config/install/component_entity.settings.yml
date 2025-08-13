@@ -1,0 +1,66 @@
+# Default configuration for Component Entity module
+bidirectional_sync:
+  enabled: true
+  auto_generate_files: true
+  auto_update_files: true
+
+generation:
+  target: module
+  name: component_entity
+  generate_yml: true
+  generate_twig: true
+  generate_react: false
+  generate_css: true
+  overwrite_files: false
+  backup_files: true
+
+templates:
+  style: bem
+  include_debug: true
+  update_on_field_change: false
+
+react:
+  typescript: false
+  style: functional
+  hooks: true
+  css_modules: false
+  test_files: true
+  storybook: false
+
+file_system:
+  allowed_modules:
+    - component_entity
+    - custom_components
+  allowed_themes:
+    - olivero
+    - claro
+  custom_paths: []
+  backup_directory: 'private://component_backups'
+  max_file_size: 1048576  # 1MB
+
+security:
+  validate_content: true
+  allowed_extensions:
+    - yml
+    - yaml
+    - twig
+    - html
+    - js
+    - jsx
+    - ts
+    - tsx
+    - css
+    - scss
+    - json
+    - md
+  scan_for_php: true
+
+cache:
+  discovery_cache_ttl: 3600
+  clear_on_sync: true
+
+logging:
+  log_file_operations: true
+  log_sync_operations: true
+  verbose_logging: false
+  

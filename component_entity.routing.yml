@@ -109,16 +109,98 @@ entity.component_type.delete_form:
   options:
     _admin_route: TRUE
 
-# Sync route
+# Sync routes
 component_entity.sync:
-  path: '/admin/config/component-entity/sync'
+  path: '/admin/structure/component-types/sync'
   defaults:
-    _form: '\Drupal\component_entity\Form\ComponentSyncForm'
-    _title: 'Sync SDC Components'
+    _controller: '\Drupal\component_entity\Controller\SyncController::syncAll'
+    _title: 'Sync Components'
   requirements:
     _permission: 'administer component types'
-  options:
-    _admin_route: TRUE
+
+component_entity.sync_component:
+  path: '/admin/structure/component-types/{component_type}/sync'
+  defaults:
+    _controller: '\Drupal\component_entity\Controller\SyncController::syncComponent'
+    _title: 'Sync Component'
+  requirements:
+    _permission: 'administer component types'
+
+# Component library browser
+component_entity.library:
+  path: '/admin/structure/component-types/library'
+  defaults:
+    _controller: '\Drupal\component_entity\Controller\ComponentLibraryController::overview'
+    _title: 'Component Library'
+  requirements:
+    _permission: 'access component library'
+
+---
+
+# component_entity.permissions.yml
+# Permission definitions for Component Entity module
+
+# Component type permissions
+administer component types:
+  title: 'Administer component types'
+  description: 'Create, edit, and delete component types and manage their fields.'
+  restrict access: true
+
+# Component entity permissions
+access component overview:
+  title: 'Access component overview'
+  description: 'View the component administration overview page.'
+
+create component entities:
+  title: 'Create component entities'
+  description: 'Create new component entities of any type.'
+
+view published component entities:
+  title: 'View published component entities'
+  description: 'View published component entities.'
+
+view unpublished component entities:
+  title: 'View unpublished component entities'
+  description: 'View unpublished component entities.'
+
+edit any component entities:
+  title: 'Edit any component entities'
+  description: 'Edit any component entity regardless of ownership.'
+
+edit own component entities:
+  title: 'Edit own component entities'
+  description: 'Edit component entities created by the user.'
+
+delete any component entities:
+  title: 'Delete any component entities'
+  description: 'Delete any component entity regardless of ownership.'
+
+delete own component entities:
+  title: 'Delete own component entities'
+  description: 'Delete component entities created by the user.'
+
+revert component revisions:
+  title: 'Revert component revisions'
+  description: 'Revert component entities to previous revisions.'
+
+delete component revisions:
+  title: 'Delete component revisions'
+  description: 'Delete old revisions of component entities.'
+
+# File management permissions
+manage component files:
+  title: 'Manage component files'
+  description: 'Create, update, and delete component files through bi-directional sync.'
+  restrict access: true
+
+# Component library permissions
+access component library:
+  title: 'Access component library'
+  description: 'View the component library browser.'
+
+# Per-bundle permissions (dynamically generated)
+permission_callbacks:
+  - \Drupal\component_entity\ComponentEntityPermissions::componentTypePermissions
 
 # Preview route
 component_entity.preview:
@@ -158,3 +240,13 @@ component_entity.settings:
     _permission: 'administer component entity settings'
   options:
     _admin_route: TRUE
+
+# Field UI routes for component types
+entity.component.field_ui_fields:
+  path: '/admin/structure/component-types/{component_type}/fields'
+  defaults:
+    _controller: '\Drupal\field_ui\Controller\FieldConfigListController::listing'
+    _title: 'Manage fields'
+    entity_type_id: 'component'
+  requirements:
+    _permission: 'administer component types'

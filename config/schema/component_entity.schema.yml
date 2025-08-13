@@ -1,0 +1,222 @@
+# Schema for component_entity module configuration
+component_entity.settings:
+  type: config_object
+  label: 'Component Entity settings'
+  mapping:
+    # Bi-directional sync settings
+    bidirectional_sync:
+      type: mapping
+      label: 'Bi-directional sync settings'
+      mapping:
+        enabled:
+          type: boolean
+          label: 'Enable bi-directional sync'
+        auto_generate_files:
+          type: boolean
+          label: 'Automatically generate component files'
+        auto_update_files:
+          type: boolean
+          label: 'Automatically update files on entity changes'
+        
+    # Generation settings
+    generation:
+      type: mapping
+      label: 'File generation settings'
+      mapping:
+        target:
+          type: string
+          label: 'Generation target (module or theme)'
+        name:
+          type: string
+          label: 'Module or theme name'
+        generate_yml:
+          type: boolean
+          label: 'Generate component.yml files'
+        generate_twig:
+          type: boolean
+          label: 'Generate Twig templates'
+        generate_react:
+          type: boolean
+          label: 'Generate React components'
+        generate_css:
+          type: boolean
+          label: 'Generate CSS files'
+        overwrite_files:
+          type: boolean
+          label: 'Allow overwriting existing files'
+        backup_files:
+          type: boolean
+          label: 'Create backups before overwriting'
+        
+    # Template settings
+    templates:
+      type: mapping
+      label: 'Template generation settings'
+      mapping:
+        style:
+          type: string
+          label: 'CSS naming convention (bem, bootstrap, minimal)'
+        include_debug:
+          type: boolean
+          label: 'Include debug comments in templates'
+        update_on_field_change:
+          type: boolean
+          label: 'Update templates when fields change'
+        
+    # React settings
+    react:
+      type: mapping
+      label: 'React generation settings'
+      mapping:
+        typescript:
+          type: boolean
+          label: 'Generate TypeScript components'
+        style:
+          type: string
+          label: 'Component style (functional, class)'
+        hooks:
+          type: boolean
+          label: 'Include React hooks'
+        css_modules:
+          type: boolean
+          label: 'Use CSS modules'
+        test_files:
+          type: boolean
+          label: 'Generate test files'
+        storybook:
+          type: boolean
+          label: 'Generate Storybook stories'
+        
+    # File system settings
+    file_system:
+      type: mapping
+      label: 'File system settings'
+      mapping:
+        allowed_modules:
+          type: sequence
+          label: 'Modules allowed for file operations'
+          sequence:
+            type: string
+        allowed_themes:
+          type: sequence
+          label: 'Themes allowed for file operations'
+          sequence:
+            type: string
+        custom_paths:
+          type: sequence
+          label: 'Custom paths for components'
+          sequence:
+            type: string
+        backup_directory:
+          type: string
+          label: 'Backup directory path'
+        max_file_size:
+          type: integer
+          label: 'Maximum file size in bytes'
+        
+    # Security settings
+    security:
+      type: mapping
+      label: 'Security settings'
+      mapping:
+        validate_content:
+          type: boolean
+          label: 'Validate file content for security'
+        allowed_extensions:
+          type: sequence
+          label: 'Allowed file extensions'
+          sequence:
+            type: string
+        scan_for_php:
+          type: boolean
+          label: 'Scan for PHP code in templates'
+        
+    # Cache settings
+    cache:
+      type: mapping
+      label: 'Cache settings'
+      mapping:
+        discovery_cache_ttl:
+          type: integer
+          label: 'Component discovery cache TTL'
+        clear_on_sync:
+          type: boolean
+          label: 'Clear caches after sync'
+        
+    # Logging settings
+    logging:
+      type: mapping
+      label: 'Logging settings'
+      mapping:
+        log_file_operations:
+          type: boolean
+          label: 'Log all file operations'
+        log_sync_operations:
+          type: boolean
+          label: 'Log sync operations'
+        verbose_logging:
+          type: boolean
+          label: 'Enable verbose logging'
+
+# Component type entity configuration
+component_entity.component_type.*:
+  type: config_entity
+  label: 'Component type'
+  mapping:
+    id:
+      type: string
+      label: 'Machine name'
+    label:
+      type: label
+      label: 'Label'
+    description:
+      type: text
+      label: 'Description'
+    sdc_id:
+      type: string
+      label: 'SDC component ID'
+    rendering:
+      type: mapping
+      label: 'Rendering configuration'
+      mapping:
+        twig_enabled:
+          type: boolean
+          label: 'Enable Twig rendering'
+        react_enabled:
+          type: boolean
+          label: 'Enable React rendering'
+        default_method:
+          type: string
+          label: 'Default render method'
+        react_library:
+          type: string
+          label: 'React library name'
+    auto_sync:
+      type: boolean
+      label: 'Enable auto-sync'
+    sync_slots:
+      type: boolean
+      label: 'Sync slot fields'
+    strict_schema:
+      type: boolean
+      label: 'Enforce strict schema validation'
+    required_fields:
+      type: sequence
+      label: 'Required fields'
+      sequence:
+        type: string
+    preview_mode:
+      type: string
+      label: 'Preview mode'
+    workflow:
+      type: string
+      label: 'Workflow'
+    revision:
+      type: boolean
+      label: 'Enable revisions'
+    settings:
+      type: mapping
+      label: 'Additional settings'
+    checksum:
+      type: string
+      label: 'Component checksum'

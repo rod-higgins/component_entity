@@ -12,13 +12,6 @@ services:
     tags:
       - { name: service_collector, tag: component_sync_processor, call: addProcessor }
 
-  # Component validator
-  component_entity.validator:
-    class: Drupal\component_entity\ComponentValidator
-    arguments:
-      - '@plugin.manager.sdc'
-      - '@logger.factory'
-
   # React renderer service
   component_entity.react_renderer:
     class: Drupal\component_entity\ComponentReactRenderer
@@ -103,3 +96,107 @@ services:
     class: Drupal\component_entity\ComponentPermissions
     arguments:
       - '@entity_type.manager'
+
+  # New bi-directional sync services
+  component_entity.bidirectional_sync:
+    class: Drupal\component_entity\Service\BiDirectionalSyncService
+    arguments:
+      - '@entity_type.manager'
+      - '@component_entity.sdc_generator'
+      - '@component_entity.template_generator'
+      - '@component_entity.react_generator'
+      - '@component_entity.file_writer'
+      - '@module_handler'
+      - '@theme_handler'
+      - '@config.factory'
+      - '@logger.channel.component_entity'
+      - '@event_dispatcher'
+
+  component_entity.sdc_generator:
+    class: Drupal\component_entity\Generator\SdcGeneratorService
+    arguments:
+      - '@entity_field.manager'
+      - '@entity_type.manager'
+      - '@file_system'
+      - '@module_handler'
+      - '@theme_handler'
+      - '@logger.channel.component_entity'
+
+  component_entity.template_generator:
+    class: Drupal\component_entity\Generator\TemplateGeneratorService
+    arguments:
+      - '@entity_field.manager'
+      - '@file_system'
+      - '@logger.channel.component_entity'
+
+  component_entity.react_generator:
+    class: Drupal\component_entity\Generator\ReactGeneratorService
+    arguments:
+      - '@entity_field.manager'
+      - '@file_system'
+      - '@logger.channel.component_entity'
+
+  component_entity.file_writer:
+    class: Drupal\component_entity\Service\FileSystemWriterService
+    arguments:
+      - '@file_system'
+      - '@module_handler'
+      - '@theme_handler'
+      - '@config.factory'
+      - '@current_user'
+      - '@logger.channel.component_entity'
+      - '@event_dispatcher'
+
+  # Event subscribers
+  component_entity.sync_event_subscriber:
+    class: Drupal\component_entity\EventSubscriber\SyncEventSubscriber
+    arguments:
+      - '@messenger'
+      - '@logger.channel.component_entity'
+    tags:
+      - { name: event_subscriber }
+
+  component_entity.file_event_subscriber:
+    class: Drupal\component_entity\EventSubscriber\FileEventSubscriber
+    arguments:
+      - '@logger.channel.component_entity'
+    tags:
+      - { name: event_subscriber }
+
+  # Component renderer services
+  component_entity.renderer.twig:
+    class: Drupal\component_entity\Plugin\ComponentRenderer\TwigRenderer
+    arguments:
+      - '@twig'
+      - '@plugin.manager.sdc'
+      - '@theme.manager'
+      - '@module_handler'
+      - '@entity_type.manager'
+    tags:
+      - { name: component_renderer, priority: 100 }
+
+  component_entity.renderer.react:
+    class: Drupal\component_entity\Plugin\ComponentRenderer\ReactRenderer
+    arguments:
+      - '@renderer'
+      - '@module_handler'
+      - '@config.factory'
+    tags:
+      - { name: component_renderer, priority: 90 }
+
+  # Component discovery service
+  component_entity.discovery:
+    class: Drupal\component_entity\ComponentDiscoveryService
+    arguments:
+      - '@module_handler'
+      - '@theme_handler'
+      - '@file_system'
+      - '@cache.discovery'
+
+  # Component validation service
+  component_entity.validator:
+    class: Drupal\component_entity\ComponentValidatorService
+    arguments:
+      - '@plugin.manager.sdc'
+      - '@entity_field.manager'
+      - '@logger.channel.component_entity'

@@ -6,6 +6,8 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
@@ -282,4 +284,198 @@ function template_preprocess_component_entity(array &$variables) {
   foreach (Element::children($variables['elements']) as $key) {
     $variables['content'][$key] = $variables['elements'][$key];
   }
+}
+
+/**
+ * Implements hook_entity_insert() for component_type entities.
+ */
+function component_entity_component_type_insert(EntityInterface $entity) {
+  if ($entity->getEntityTypeId() === 'component_type') {
+    // Trigger bi-directional sync when new component type is created.
+    \Drupal::service('component_entity.bidirectional_sync')->handleComponentTypeCreated($entity);
+  }
+}
+
+/**
+ * Implements hook_entity_update() for component_type entities.
+ */
+function component_entity_component_type_update(EntityInterface $entity) {
+  if ($entity->getEntityTypeId() === 'component_type') {
+    // Check if auto-sync is enabled.
+    if ($entity->get('auto_sync')) {
+      \Drupal::service('component_entity.bidirectional_sync')->handleComponentTypeUpdated($entity);
+    }
+  }
+}
+
+/**
+ * Implements hook_field_config_insert().
+ */
+function component_entity_field_config_insert(FieldConfig $field) {
+  // Detect when fields are added to component bundles.
+  if ($field->getTargetEntityTypeId() === 'component') {
+    $bundle = $field->getTargetBundle();
+    $component_type_storage = \Drupal::entityTypeManager()->getStorage('component_type');
+    $component_type = $component_type_storage->load($bundle);
+    
+    if ($component_type && $component_type->get('auto_sync')) {
+      // Trigger SDC file update when new field is added.
+      \Drupal::service('component_entity.bidirectional_sync')->handleFieldAdded($field, $component_type);
+    }
+  }
+}
+
+/**
+ * Implements hook_field_config_update().
+ */
+function component_entity_field_config_update(FieldConfig $field) {
+  // Detect when fields are modified on component bundles.
+  if ($field->getTargetEntityTypeId() === 'component') {
+    $bundle = $field->getTargetBundle();
+    $component_type_storage = \Drupal::entityTypeManager()->getStorage('component_type');
+    $component_type = $component_type_storage->load($bundle);
+    
+    if ($component_type && $component_type->get('auto_sync')) {
+      // Trigger SDC file update when field is modified.
+      \Drupal::service('component_entity.bidirectional_sync')->handleFieldUpdated($field, $component_type);
+    }
+  }
+}
+
+/**
+ * Implements hook_field_config_delete().
+ */
+function component_entity_field_config_delete(FieldConfig $field) {
+  // Detect when fields are removed from component bundles.
+  if ($field->getTargetEntityTypeId() === 'component') {
+    $bundle = $field->getTargetBundle();
+    $component_type_storage = \Drupal::entityTypeManager()->getStorage('component_type');
+    $component_type = $component_type_storage->load($bundle);
+    
+    if ($component_type && $component_type->get('auto_sync')) {
+      // Trigger SDC file update when field is deleted.
+      \Drupal::service('component_entity.bidirectional_sync')->handleFieldDeleted($field, $component_type);
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for field_ui_field_add_form.
+ */
+function component_entity_form_field_ui_field_add_form_alter(&$form, $form_state, $form_id) {
+  $entity_type = $form_state->get('entity_type_id');
+  $bundle = $form_state->get('bundle');
+  
+  if ($entity_type === 'component') {
+    // Add submit handler to trigger sync after field addition.
+    $form['#submit'][] = 'component_entity_field_ui_add_submit';
+    
+    // Add warning about bi-directional sync.
+    $component_type = \Drupal::entityTypeManager()
+      ->getStorage('component_type')
+      ->load($bundle);
+    
+    if ($component_type && $component_type->get('auto_sync')) {
+      \Drupal::messenger()->addWarning(t(
+        'Auto-sync is enabled for this component type. Adding this field will automatically update the SDC component files.'
+      ));
+    }
+  }
+}
+
+/**
+ * Submit handler for field UI add form.
+ */
+function component_entity_field_ui_add_submit($form, $form_state) {
+  $entity_type = $form_state->get('entity_type_id');
+  $bundle = $form_state->get('bundle');
+  
+  if ($entity_type === 'component') {
+    // Clear caches to ensure the new field is recognized.
+    \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
+    
+    // Trigger a sync check.
+    $component_type = \Drupal::entityTypeManager()
+      ->getStorage('component_type')
+      ->load($bundle);
+    
+    if ($component_type) {
+      \Drupal::service('component_entity.bidirectional_sync')
+        ->checkAndSyncComponentType($component_type);
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for field_ui_field_edit_form.
+ */
+function component_entity_form_field_ui_field_edit_form_alter(&$form, $form_state, $form_id) {
+  $field_config = $form_state->getFormObject()->getEntity();
+  
+  if ($field_config->getTargetEntityTypeId() === 'component') {
+    // Add metadata fields for SDC mapping.
+    $form['sdc_settings'] = [
+      '#type' => 'details',
+      '#title' => t('SDC Component Settings'),
+      '#open' => FALSE,
+      '#weight' => 10,
+    ];
+    
+    $form['sdc_settings']['sdc_prop_type'] = [
+      '#type' => 'select',
+      '#title' => t('SDC Property Type'),
+      '#options' => [
+        'string' => t('String'),
+        'number' => t('Number'),
+        'boolean' => t('Boolean'),
+        'object' => t('Object'),
+        'array' => t('Array'),
+      ],
+      '#default_value' => $field_config->getThirdPartySetting('component_entity', 'sdc_prop_type', 'string'),
+      '#description' => t('The JavaScript type for this property in the SDC component.'),
+    ];
+    
+    $form['sdc_settings']['sdc_required'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Required in SDC'),
+      '#default_value' => $field_config->getThirdPartySetting('component_entity', 'sdc_required', FALSE),
+      '#description' => t('Whether this property is required in the SDC component schema.'),
+    ];
+    
+    $form['sdc_settings']['sdc_default'] = [
+      '#type' => 'textfield',
+      '#title' => t('SDC Default Value'),
+      '#default_value' => $field_config->getThirdPartySetting('component_entity', 'sdc_default', ''),
+      '#description' => t('Default value for this property in the SDC component.'),
+    ];
+    
+    $form['sdc_settings']['react_prop_name'] = [
+      '#type' => 'textfield',
+      '#title' => t('React Prop Name'),
+      '#default_value' => $field_config->getThirdPartySetting('component_entity', 'react_prop_name', ''),
+      '#description' => t('Override the prop name for React components (leave empty to use field name).'),
+    ];
+    
+    // Add submit handler.
+    $form['actions']['submit']['#submit'][] = 'component_entity_field_ui_edit_submit';
+  }
+}
+
+/**
+ * Submit handler for field UI edit form.
+ */
+function component_entity_field_ui_edit_submit($form, $form_state) {
+  $field_config = $form_state->getFormObject()->getEntity();
+  
+  // Save third-party settings.
+  $field_config->setThirdPartySetting('component_entity', 'sdc_prop_type', 
+    $form_state->getValue('sdc_prop_type'));
+  $field_config->setThirdPartySetting('component_entity', 'sdc_required', 
+    $form_state->getValue('sdc_required'));
+  $field_config->setThirdPartySetting('component_entity', 'sdc_default', 
+    $form_state->getValue('sdc_default'));
+  $field_config->setThirdPartySetting('component_entity', 'react_prop_name', 
+    $form_state->getValue('react_prop_name'));
+  
+  $field_config->save();
 }

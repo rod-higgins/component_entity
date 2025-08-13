@@ -60,3 +60,65 @@ configure react rendering:
 access component api:
   title: 'Access component API'
   description: 'Access component data via API endpoints.'
+
+# Component type permissions
+administer component types:
+  title: 'Administer component types'
+  description: 'Create, edit, and delete component types and manage their fields.'
+  restrict access: true
+
+# Component entity permissions
+access component overview:
+  title: 'Access component overview'
+  description: 'View the component administration overview page.'
+
+create component entities:
+  title: 'Create component entities'
+  description: 'Create new component entities of any type.'
+
+view published component entities:
+  title: 'View published component entities'
+  description: 'View published component entities.'
+
+view unpublished component entities:
+  title: 'View unpublished component entities'
+  description: 'View unpublished component entities.'
+
+edit any component entities:
+  title: 'Edit any component entities'
+  description: 'Edit any component entity regardless of ownership.'
+
+edit own component entities:
+  title: 'Edit own component entities'
+  description: 'Edit component entities created by the user.'
+
+delete any component entities:
+  title: 'Delete any component entities'
+  description: 'Delete any component entity regardless of ownership.'
+
+delete own component entities:
+  title: 'Delete own component entities'
+  description: 'Delete component entities created by the user.'
+
+revert component revisions:
+  title: 'Revert component revisions'
+  description: 'Revert component entities to previous revisions.'
+
+delete component revisions:
+  title: 'Delete component revisions'
+  description: 'Delete old revisions of component entities.'
+
+# File management permissions
+manage component files:
+  title: 'Manage component files'
+  description: 'Create, update, and delete component files through bi-directional sync.'
+  restrict access: true
+
+# Component library permissions
+access component library:
+  title: 'Access component library'
+  description: 'View the component library browser.'
+
+# Per-bundle permissions (dynamically generated)
+permission_callbacks:
+  - \Drupal\component_entity\ComponentEntityPermissions::componentTypePermissions
