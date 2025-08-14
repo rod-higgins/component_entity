@@ -277,7 +277,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    foreach ($field as $item) {
       if ($entity = $item->entity) {
         // Return basic entity data.
         $values[] = [
@@ -309,7 +309,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    foreach ($field as $item) {
       if ($file = $item->entity) {
         $values[] = [
           'url' => $file->createFileUrl(),
@@ -341,7 +341,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    foreach ($field as $item) {
       $values[] = [
         'url' => $item->getUrl()->toString(),
         'title' => $item->title,
@@ -368,7 +368,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    foreach ($field as $item) {
       // For formatted text, return processed value.
       if (isset($item->format)) {
         $build = [
