@@ -13,16 +13,22 @@ use Psr\Log\LoggerInterface;
 class TemplateGeneratorService {
 
   /**
+   * The entity field manager service.
+   *
    * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
   protected $entityFieldManager;
 
   /**
+   * The file system service.
+   *
    * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
+   * The logger service.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
@@ -127,7 +133,7 @@ class TemplateGeneratorService {
    */
   protected function generateTemplateContent($component_type, array $options) {
     $bundle = $component_type->id();
-    $label = $component_type->label();
+    // Removed unused $label variable.
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $bundle);
 
     // Start building the template.
@@ -168,7 +174,7 @@ class TemplateGeneratorService {
 
     // List available variables.
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $component_type->id());
-    foreach ($fields as $field_name => $field_definition) {
+    foreach ($fields as $field_definition) {
       if ($this->isTemplateField($field_definition)) {
         $prop_name = $this->getPropVariableName($field_definition);
         $header .= " * - " . $prop_name . ": " . $field_definition->getLabel() . "\n";
@@ -224,13 +230,13 @@ class TemplateGeneratorService {
     $content = "";
     $indent = "  ";
 
-    foreach ($fields as $field_name => $field_definition) {
+    foreach ($fields as $current_field_name => $field_definition) {
       if (!$this->isTemplateField($field_definition)) {
         continue;
       }
 
       $prop_name = $this->getPropVariableName($field_definition);
-      $element_class = $this->getElementClass($base_class, $field_name, $options['style']);
+      $element_class = $this->getElementClass($base_class, $current_field_name, $options['style']);
 
       // Generate field output based on field type.
       $field_type = $field_definition->getType();
@@ -238,7 +244,7 @@ class TemplateGeneratorService {
       switch ($field_type) {
         case 'string':
         case 'string_long':
-          if ($field_name === 'field_title' || $field_name === 'title') {
+          if ($current_field_name === 'field_title' || $current_field_name === 'title') {
             $content .= $indent . "{% if " . $prop_name . " %}\n";
             $content .= $indent . "  <h2{{ title_attributes.addClass('" . $element_class . "') }}>{{ " . $prop_name . " }}</h2>\n";
             $content .= $indent . "{% endif %}\n\n";
@@ -318,7 +324,7 @@ class TemplateGeneratorService {
     $content = "";
     $indent = "  ";
 
-    foreach ($fields as $field_name => $field_definition) {
+    foreach ($fields as $field_definition) {
       if (!$this->isSlotField($field_definition)) {
         continue;
       }
