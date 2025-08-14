@@ -292,7 +292,6 @@ class BiDirectionalSyncService {
    */
   public function handleFieldAdded(FieldConfig $field, $component_type) {
     $options = $this->getGenerationOptions($component_type);
-    $component_path = $this->getComponentPath($component_type, $options);
 
     $results = [];
 
