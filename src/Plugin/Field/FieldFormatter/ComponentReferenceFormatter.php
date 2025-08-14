@@ -553,7 +553,8 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
    * {@inheritdoc}
    */
   public static function isApplicable(FieldDefinitionInterface $field_definition) {
-    // This formatter is only applicable to fields that reference component entities.
+    // This formatter is only applicable to fields
+    // that reference component entities.
     $target_type = $field_definition->getFieldStorageDefinition()->getSetting('target_type');
     return $target_type === 'component';
   }
