@@ -64,8 +64,7 @@ class ComponentEntityDeleteForm extends ContentEntityDeleteForm {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $entity = $this->getEntity();
-    $entity_type = $entity->getEntityType();
-
+    // Removed unused $entity_type variable.
     // Log the deletion.
     $this->logger('component_entity')->notice('Deleted component %name (ID: %id, Type: %type).', [
       '%name' => $entity->label(),
