@@ -1,0 +1,91 @@
+name: Hero Banner
+status: true
+description: A full-width hero banner with background image and CTA
+props:
+  type: object
+  properties:
+    title:
+      type: string
+      title: Title
+      description: Main heading text
+      examples:
+        - Welcome to Our Site
+    subtitle:
+      type: string
+      title: Subtitle
+      description: Supporting text below the title
+      examples:
+        - Discover amazing possibilities
+    background_image:
+      type: object
+      title: Background Image
+      properties:
+        src:
+          type: string
+          title: Image URL
+        alt:
+          type: string
+          title: Alt Text
+        loading:
+          type: string
+          enum: [lazy, eager]
+          default: lazy
+    background_color:
+      type: string
+      title: Background Color
+      description: Fallback color or overlay
+      enum: [primary, secondary, dark, light, brand]
+      default: dark
+    cta_button:
+      type: object
+      title: Call to Action Button
+      properties:
+        text:
+          type: string
+          title: Button Text
+        url:
+          type: string
+          title: Button URL
+        variant:
+          type: string
+          enum: [primary, secondary, outline]
+          default: primary
+        target:
+          type: string
+          enum: [_self, _blank]
+          default: _self
+    alignment:
+      type: string
+      title: Content Alignment
+      enum: [left, center, right]
+      default: center
+    overlay_opacity:
+      type: number
+      title: Overlay Opacity
+      minimum: 0
+      maximum: 1
+      default: 0.4
+    min_height:
+      type: string
+      title: Minimum Height
+      default: 500px
+    drupal_context:
+      type: object
+      title: Drupal Context
+      description: Drupal-specific metadata
+slots:
+  content:
+    title: Additional Content
+    description: Additional content below subtitle
+  footer:
+    title: Footer Content
+    description: Content at the bottom of the hero
+libraryOverrides:
+  - core/drupal
+  - component_entity/react-renderer
+third_party_settings:
+  component_entity:
+    render_methods:
+      twig: true
+      react: true
+    default_render: react

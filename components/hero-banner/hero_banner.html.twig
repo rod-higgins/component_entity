@@ -1,0 +1,91 @@
+{#
+/**
+ * @file
+ * Hero Banner component template.
+ *
+ * Available variables:
+ * - title: The main heading text
+ * - subtitle: Supporting text
+ * - background_image: Object with src, alt, loading
+ * - background_color: Color theme (primary, secondary, dark, light, brand)
+ * - cta_button: Object with text, url, variant, target
+ * - alignment: Content alignment (left, center, right)
+ * - overlay_opacity: Opacity of background overlay
+ * - min_height: Minimum height of hero
+ * - attributes: HTML attributes for the component
+ * - slots: Content slots (content, footer)
+ */
+#}
+{% set hero_classes = [
+  'hero-banner',
+  'hero-banner--' ~ (background_color|default('dark')),
+  'hero-banner--align-' ~ (alignment|default('center')),
+  'hero-banner--twig-rendered',
+] %}
+
+<section{{ attributes.addClass(hero_classes) }} 
+  style="min-height: {{ min_height|default('500px') }};"
+  data-component="hero-banner">
+  
+  {# Background Image #}
+  {% if background_image %}
+    <div class="hero-banner__background">
+      <img 
+        src="{{ background_image.src }}" 
+        alt="{{ background_image.alt }}"
+        loading="{{ background_image.loading|default('lazy') }}"
+        class="hero-banner__image"
+      >
+      <div class="hero-banner__overlay" 
+        style="opacity: {{ overlay_opacity|default(0.4) }};">
+      </div>
+    </div>
+  {% endif %}
+
+  {# Content Container #}
+  <div class="hero-banner__container">
+    <div class="hero-banner__content">
+      
+      {# Title #}
+      {% if title %}
+        <h1 class="hero-banner__title">
+          {{ title }}
+        </h1>
+      {% endif %}
+
+      {# Subtitle #}
+      {% if subtitle %}
+        <p class="hero-banner__subtitle">
+          {{ subtitle }}
+        </p>
+      {% endif %}
+
+      {# Additional Content Slot #}
+      {% if slots.content %}
+        <div class="hero-banner__body">
+          {{ slots.content }}
+        </div>
+      {% endif %}
+
+      {# CTA Button #}
+      {% if cta_button %}
+        <div class="hero-banner__actions">
+          <a href="{{ cta_button.url }}" 
+             class="hero-banner__cta button button--{{ cta_button.variant|default('primary') }}"
+             {% if cta_button.target %}target="{{ cta_button.target }}"{% endif %}
+             {% if cta_button.target == '_blank' %}rel="noopener noreferrer"{% endif %}>
+            {{ cta_button.text }}
+          </a>
+        </div>
+      {% endif %}
+
+    </div>
+
+    {# Footer Slot #}
+    {% if slots.footer %}
+      <div class="hero-banner__footer">
+        {{ slots.footer }}
+      </div>
+    {% endif %}
+  </div>
+</section>
