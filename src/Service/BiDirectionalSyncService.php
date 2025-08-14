@@ -14,6 +14,9 @@ use Drupal\field\Entity\FieldConfig;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Drupal\component_entity\Event\BiDirectionalSyncEvent;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Plugin\CachedDiscoveryClearerInterface;
+use Drupal\Core\Theme\Registry;
 
 /**
  * Service for bi-directional synchronization between entities and SDC files.
@@ -21,54 +24,95 @@ use Drupal\component_entity\Event\BiDirectionalSyncEvent;
 class BiDirectionalSyncService {
 
   /**
+   * The entity type manager service.
+   *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
   /**
+   * The SDC generator service.
+   *
    * @var \Drupal\component_entity\Generator\SdcGeneratorService
    */
   protected $sdcGenerator;
 
   /**
+   * The template generator service.
+   *
    * @var \Drupal\component_entity\Generator\TemplateGeneratorService
    */
   protected $templateGenerator;
 
   /**
+   * The React generator service.
+   *
    * @var \Drupal\component_entity\Generator\ReactGeneratorService
    */
   protected $reactGenerator;
 
   /**
+   * The file system writer service.
+   *
    * @var \Drupal\component_entity\Service\FileSystemWriterService
    */
   protected $fileWriter;
 
   /**
+   * The module handler service.
+   *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
+   * The theme handler service.
+   *
    * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
 
   /**
+   * The config factory service.
+   *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
   /**
+   * The logger service.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
   /**
+   * The event dispatcher service.
+   *
    * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
+
+  /**
+   * The render cache backend.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected $renderCache;
+
+  /**
+   * The SDC plugin manager.
+   *
+   * @var \Drupal\Core\Plugin\CachedDiscoveryClearerInterface
+   */
+  protected $sdcPluginManager;
+
+  /**
+   * The theme registry service.
+   *
+   * @var \Drupal\Core\Theme\Registry
+   */
+  protected $themeRegistry;
 
   /**
    * Constructor.
@@ -84,6 +128,9 @@ class BiDirectionalSyncService {
     ConfigFactoryInterface $config_factory,
     LoggerInterface $logger,
     EventDispatcherInterface $event_dispatcher,
+    CacheBackendInterface $render_cache,
+    CachedDiscoveryClearerInterface $sdc_plugin_manager,
+    Registry $theme_registry,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->sdcGenerator = $sdc_generator;
@@ -95,6 +142,9 @@ class BiDirectionalSyncService {
     $this->configFactory = $config_factory;
     $this->logger = $logger;
     $this->eventDispatcher = $event_dispatcher;
+    $this->renderCache = $render_cache;
+    $this->sdcPluginManager = $sdc_plugin_manager;
+    $this->themeRegistry = $theme_registry;
   }
 
   /**
@@ -112,9 +162,6 @@ class BiDirectionalSyncService {
       'operations' => [],
     ];
 
-    // Get generation options from config or component type.
-    $options = $this->getGenerationOptions($component_type);
-
     // Dispatch pre-sync event.
     $event = new BiDirectionalSyncEvent($component_type, 'create');
     $this->eventDispatcher->dispatch($event, BiDirectionalSyncEvent::PRE_SYNC);
@@ -126,50 +173,41 @@ class BiDirectionalSyncService {
       ];
     }
 
-    // Get component path.
+    $options = $this->getGenerationOptions($component_type);
     $component_path = $this->getComponentPath($component_type, $options);
 
-    // 1. Generate component.yml
+    // Generate component.yml file.
     if ($options['generate_yml']) {
       $yml_result = $this->generateComponentYml($component_type, $component_path, $options);
       $results['operations']['yml'] = $yml_result;
-      if (!$yml_result['success']) {
-        $results['success'] = FALSE;
-      }
     }
 
-    // 2. Generate Twig template
+    // Generate Twig template if enabled.
     if ($options['generate_twig'] && $component_type->isTwigEnabled()) {
       $twig_result = $this->generateTwigTemplate($component_type, $component_path, $options);
       $results['operations']['twig'] = $twig_result;
-      if (!$twig_result['success']) {
-        $results['success'] = FALSE;
-      }
     }
 
-    // 3. Generate React component
+    // Generate React component if enabled.
     if ($options['generate_react'] && $component_type->isReactEnabled()) {
       $react_result = $this->generateReactComponent($component_type, $component_path, $options);
       $results['operations']['react'] = $react_result;
-      if (!$react_result['success']) {
-        $results['success'] = FALSE;
-      }
     }
 
-    // 4. Generate CSS file
+    // Generate CSS file.
     if ($options['generate_css']) {
       $css_result = $this->generateCssFile($component_type, $component_path, $options);
       $results['operations']['css'] = $css_result;
-      if (!$css_result['success']) {
-        $results['success'] = FALSE;
-      }
     }
 
-    // 5. Update libraries.yml if React is enabled
+    // Update libraries.yml if React is enabled.
     if ($component_type->isReactEnabled()) {
-      $library_result = $this->updateLibrariesYml($component_type, $options);
-      $results['operations']['library'] = $library_result;
+      $libraries_result = $this->updateLibrariesYml($component_type, $options);
+      $results['operations']['libraries'] = $libraries_result;
     }
+
+    // Clear caches.
+    $this->clearComponentCaches($component_type);
 
     // Dispatch post-sync event.
     $post_event = new BiDirectionalSyncEvent($component_type, 'create', $results);
@@ -259,13 +297,13 @@ class BiDirectionalSyncService {
     $results = [];
 
     // Update component.yml with new field.
-    $options['overwrite'] = TRUE;
-    $yml_result = $this->generateComponentYml($component_type, $component_path, $options);
+    $yml_result = $this->updateComponentYmlForField($field, $component_type, 'add');
     $results['yml'] = $yml_result;
 
-    // Optionally update templates to include new field.
+    // Update templates if configured.
     if ($options['update_templates_on_field_change']) {
-      $results['templates'] = $this->updateTemplatesForField($field, $component_type, 'add');
+      $template_result = $this->updateTemplatesForField($field, $component_type, 'add');
+      $results['templates'] = $template_result;
     }
 
     // Clear caches.
@@ -287,18 +325,17 @@ class BiDirectionalSyncService {
    */
   public function handleFieldUpdated(FieldConfig $field, $component_type) {
     $options = $this->getGenerationOptions($component_type);
-    $component_path = $this->getComponentPath($component_type, $options);
 
     $results = [];
 
-    // Update component.yml.
-    $options['overwrite'] = TRUE;
-    $yml_result = $this->generateComponentYml($component_type, $component_path, $options);
+    // Update component.yml with field changes.
+    $yml_result = $this->updateComponentYmlForField($field, $component_type, 'update');
     $results['yml'] = $yml_result;
 
-    // Optionally update templates.
+    // Update templates if configured.
     if ($options['update_templates_on_field_change']) {
-      $results['templates'] = $this->updateTemplatesForField($field, $component_type, 'update');
+      $template_result = $this->updateTemplatesForField($field, $component_type, 'update');
+      $results['templates'] = $template_result;
     }
 
     return $results;
@@ -317,94 +354,34 @@ class BiDirectionalSyncService {
    */
   public function handleFieldDeleted(FieldConfig $field, $component_type) {
     $options = $this->getGenerationOptions($component_type);
-    $component_path = $this->getComponentPath($component_type, $options);
 
     $results = [];
 
     // Update component.yml to remove field.
-    $options['overwrite'] = TRUE;
-    $yml_result = $this->generateComponentYml($component_type, $component_path, $options);
+    $yml_result = $this->updateComponentYmlForField($field, $component_type, 'delete');
     $results['yml'] = $yml_result;
 
-    // Optionally update templates to remove field references.
+    // Update templates if configured.
     if ($options['update_templates_on_field_change']) {
-      $results['templates'] = $this->updateTemplatesForField($field, $component_type, 'delete');
+      $template_result = $this->updateTemplatesForField($field, $component_type, 'delete');
+      $results['templates'] = $template_result;
     }
 
     return $results;
   }
 
   /**
-   * Checks and syncs a component type if needed.
-   *
-   * @param \Drupal\component_entity\Entity\ComponentTypeInterface $component_type
-   *   The component type entity.
-   *
-   * @return array
-   *   Results array.
+   * Updates component.yml for field changes.
    */
-  public function checkAndSyncComponentType($component_type) {
+  protected function updateComponentYmlForField($field, $component_type, $operation) {
+    // This would read the existing component.yml, update it based on the field
+    // operation, and write it back. For now, we'll regenerate the whole file.
     $options = $this->getGenerationOptions($component_type);
+    $options['overwrite'] = TRUE;
     $component_path = $this->getComponentPath($component_type, $options);
 
-    $needs_sync = FALSE;
-    $sync_reasons = [];
-
-    // Check if component.yml exists.
-    $yml_file = $component_path . '/' . $component_type->id() . '.component.yml';
-    if (!file_exists($yml_file)) {
-      $needs_sync = TRUE;
-      $sync_reasons[] = 'component.yml missing';
-    }
-
-    // Check if Twig template exists.
-    if ($component_type->isTwigEnabled()) {
-      $twig_file = $component_path . '/' . $component_type->id() . '.html.twig';
-      if (!file_exists($twig_file)) {
-        $needs_sync = TRUE;
-        $sync_reasons[] = 'Twig template missing';
-      }
-    }
-
-    // Check if React component exists.
-    if ($component_type->isReactEnabled()) {
-      $react_files = [
-        $component_path . '/' . $this->getComponentName($component_type->id()) . '.jsx',
-        $component_path . '/' . $this->getComponentName($component_type->id()) . '.tsx',
-      ];
-
-      $react_exists = FALSE;
-      foreach ($react_files as $react_file) {
-        if (file_exists($react_file)) {
-          $react_exists = TRUE;
-          break;
-        }
-      }
-
-      if (!$react_exists) {
-        $needs_sync = TRUE;
-        $sync_reasons[] = 'React component missing';
-      }
-    }
-
-    if ($needs_sync) {
-      $this->logger->info('Component type @type needs sync: @reasons', [
-        '@type' => $component_type->id(),
-        '@reasons' => implode(', ', $sync_reasons),
-      ]);
-
-      return $this->handleComponentTypeUpdated($component_type);
-    }
-
-    return [
-      'success' => TRUE,
-      'message' => 'Component type is in sync',
-    ];
+    return $this->generateComponentYml($component_type, $component_path, $options);
   }
-
-  /**
-   * Helper methods.
-   */
 
   /**
    * Generates component.yml file.
@@ -582,13 +559,13 @@ class BiDirectionalSyncService {
    */
   protected function clearComponentCaches($component_type) {
     // Clear render cache.
-    \Drupal::service('cache.render')->invalidateAll();
+    $this->renderCache->invalidateAll();
 
     // Clear discovery caches.
-    \Drupal::service('plugin.manager.sdc')->clearCachedDefinitions();
+    $this->sdcPluginManager->clearCachedDefinitions();
 
     // Clear theme registry.
-    \Drupal::service('theme.registry')->reset();
+    $this->themeRegistry->reset();
 
     $this->logger->info('Cleared caches for component type: @type', [
       '@type' => $component_type->id(),

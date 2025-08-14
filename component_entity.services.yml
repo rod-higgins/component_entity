@@ -114,7 +114,6 @@ services:
     arguments:
       - '@entity_type.manager'
 
-  # New bi-directional sync services
   component_entity.bidirectional_sync:
     class: Drupal\component_entity\Service\BiDirectionalSyncService
     arguments:
@@ -128,6 +127,9 @@ services:
       - '@config.factory'
       - '@logger.channel.component_entity'
       - '@event_dispatcher'
+      - '@cache.render'
+      - '@plugin.manager.sdc'
+      - '@theme.registry'
 
   component_entity.sdc_generator:
     class: Drupal\component_entity\Generator\SdcGeneratorService
