@@ -869,7 +869,16 @@ class ReactGeneratorService {
   }
 
   /**
+   * Converts a Drupal field name to a React prop name.
    *
+   * Removes the 'field_' prefix from field names to create cleaner
+   * prop names for React components.
+   *
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+   *   The field definition object.
+   *
+   * @return string
+   *   The cleaned prop name without 'field_' prefix.
    */
   protected function getPropName($field_definition) {
     $field_name = $field_definition->getName();
@@ -880,7 +889,17 @@ class ReactGeneratorService {
   }
 
   /**
+   * Maps Drupal field types to JavaScript/TypeScript types.
    *
+   * Converts Drupal field type machine names to their corresponding
+   * JavaScript or TypeScript type strings for use in React components.
+   *
+   * @param string $field_type
+   *   The Drupal field type machine name.
+   *
+   * @return string
+   *   The corresponding JavaScript/TypeScript type ('string', 'number',
+   *   'boolean', 'object', or 'any' as fallback).
    */
   protected function mapFieldTypeToJsType($field_type) {
     $mapping = [
