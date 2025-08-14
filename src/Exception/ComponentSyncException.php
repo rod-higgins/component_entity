@@ -2,6 +2,8 @@
 
 namespace Drupal\component_entity\Exception;
 
+use Drupal\Core\StringTranslation\StringTranslationTrait;
+
 /**
  * Exception thrown during component synchronization operations.
  *
@@ -10,6 +12,8 @@ namespace Drupal\component_entity\Exception;
  * or configuration conflicts.
  */
 class ComponentSyncException extends \Exception {
+
+  use StringTranslationTrait;
 
   /**
    * The component ID that caused the exception.
@@ -353,26 +357,26 @@ class ComponentSyncException extends \Exception {
   public function getUserMessage() {
     switch ($this->errorType) {
       case self::ERROR_INVALID_DEFINITION:
-        return t('The component definition is invalid. Please check the component configuration.');
+        return $this->t('The component definition is invalid. Please check the component configuration.');
 
       case self::ERROR_FIELD_MAPPING:
-        return t('Unable to map component properties to fields. Please review the field configuration.');
+        return $this->t('Unable to map component properties to fields. Please review the field configuration.');
 
       case self::ERROR_BUNDLE_CONFLICT:
-        return t('There is a naming conflict with an existing component type.');
+        return $this->t('There is a naming conflict with an existing component type.');
 
       case self::ERROR_PERMISSION_DENIED:
-        return t('You do not have permission to perform this operation.');
+        return $this->t('You do not have permission to perform this operation.');
 
       case self::ERROR_MISSING_DEPENDENCY:
-        return t('Required dependencies are missing. Please install the necessary modules.');
+        return $this->t('Required dependencies are missing. Please install the necessary modules.');
 
       case self::ERROR_VALIDATION:
-        return t('The component data is invalid. Please check the provided values.');
+        return $this->t('The component data is invalid. Please check the provided values.');
 
       case self::ERROR_CONFIGURATION:
       default:
-        return t('A configuration error occurred during component synchronization.');
+        return $this->t('A configuration error occurred during component synchronization.');
     }
   }
 
