@@ -3,7 +3,11 @@
 namespace Drupal\component_entity\Commands;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Plugin\Component\ComponentPluginManager;
+use Drupal\component_entity\ComponentCacheManager;
 use Drupal\component_entity\ComponentSyncService;
 use Drush\Commands\DrushCommands;
 use Drush\Attributes\Command;
@@ -38,6 +42,34 @@ class ComponentEntityCommands extends DrushCommands {
   protected $loggerFactory;
 
   /**
+   * The SDC plugin manager.
+   *
+   * @var \Drupal\Core\Plugin\Component\ComponentPluginManager
+   */
+  protected $componentPluginManager;
+
+  /**
+   * The entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * The module extension list.
+   *
+   * @var \Drupal\Core\Extension\ModuleExtensionList
+   */
+  protected $moduleExtensionList;
+
+  /**
+   * The component cache manager.
+   *
+   * @var \Drupal\component_entity\ComponentCacheManager
+   */
+  protected $cacheManager;
+
+  /**
    * Constructs a ComponentEntityCommands object.
    *
    * @param \Drupal\component_entity\ComponentSyncService $sync_service
@@ -46,16 +78,32 @@ class ComponentEntityCommands extends DrushCommands {
    *   The entity type manager.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory.
+   * @param \Drupal\Core\Plugin\Component\ComponentPluginManager $component_plugin_manager
+   *   The SDC plugin manager.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $module_extension_list
+   *   The module extension list.
+   * @param \Drupal\component_entity\ComponentCacheManager $cache_manager
+   *   The component cache manager.
    */
   public function __construct(
     ComponentSyncService $sync_service,
     EntityTypeManagerInterface $entity_type_manager,
     LoggerChannelFactoryInterface $logger_factory,
+    ComponentPluginManager $component_plugin_manager,
+    EntityFieldManagerInterface $entity_field_manager,
+    ModuleExtensionList $module_extension_list,
+    ComponentCacheManager $cache_manager,
   ) {
     parent::__construct();
     $this->syncService = $sync_service;
     $this->entityTypeManager = $entity_type_manager;
     $this->loggerFactory = $logger_factory;
+    $this->componentPluginManager = $component_plugin_manager;
+    $this->entityFieldManager = $entity_field_manager;
+    $this->moduleExtensionList = $module_extension_list;
+    $this->cacheManager = $cache_manager;
   }
 
   /**
@@ -126,7 +174,7 @@ class ComponentEntityCommands extends DrushCommands {
     }
     else {
       // Dry run - just show what would be synced.
-      $components = \Drupal::service('plugin.manager.sdc')->getAllComponents();
+      $components = $this->componentPluginManager->getAllComponents();
       $this->io()->writeln(sprintf('Found %d SDC components', count($components)));
 
       foreach ($components as $id => $component) {
@@ -151,6 +199,7 @@ class ComponentEntityCommands extends DrushCommands {
    *   List all component types.
    *
    * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+   *   A table of component types with their details.
    */
   #[Command(
     name: 'component:list-types',
@@ -216,6 +265,7 @@ class ComponentEntityCommands extends DrushCommands {
    *   List all React-rendered components.
    *
    * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
+   *   A table of components with their details.
    */
   #[Command(
     name: 'component:list',
@@ -271,6 +321,183 @@ class ComponentEntityCommands extends DrushCommands {
     }
 
     return new RowsOfFields($rows);
+  }
+
+  /**
+   * Export a component to JSON.
+   *
+   * @command component:export
+   * @aliases cexp
+   * @argument id The component entity ID
+   * @option include-fields Include field configuration
+   * @usage component:export 123
+   *   Export component with ID 123 to JSON.
+   */
+  #[Command(
+    name: 'component:export',
+    aliases: ['cexp']
+  )]
+  #[Argument(
+    name: 'id',
+    description: 'The component entity ID'
+  )]
+  #[Option(
+    name: 'include-fields',
+    description: 'Include field configuration'
+  )]
+  public function export($id, $options = ['include-fields' => FALSE]) {
+    $component = $this->entityTypeManager
+      ->getStorage('component')
+      ->load($id);
+
+    if (!$component) {
+      $this->io()->error(sprintf('Component with ID %d not found', $id));
+      return 1;
+    }
+
+    $export = [
+      'id' => $component->id(),
+      'uuid' => $component->uuid(),
+      'type' => $component->bundle(),
+      'name' => $component->label(),
+      'render_method' => $component->getRenderMethod(),
+      'react_config' => $component->getReactConfig(),
+      'created' => $component->getCreatedTime(),
+      'changed' => $component->getChangedTime(),
+      'fields' => [],
+    ];
+
+    // Export field values.
+    foreach ($component->getFields() as $field_name => $field) {
+      if (strpos($field_name, 'field_') === 0 && !$field->isEmpty()) {
+        $export['fields'][$field_name] = $field->getValue();
+      }
+    }
+
+    // Include field configuration if requested.
+    if ($options['include-fields']) {
+      $export['field_config'] = [];
+      $fields = $this->entityFieldManager
+        ->getFieldDefinitions('component', $component->bundle());
+
+      foreach ($fields as $field_name => $field_definition) {
+        if (strpos($field_name, 'field_') === 0) {
+          $export['field_config'][$field_name] = [
+            'type' => $field_definition->getType(),
+            'label' => $field_definition->getLabel(),
+            'required' => $field_definition->isRequired(),
+            'cardinality' => $field_definition->getFieldStorageDefinition()->getCardinality(),
+          ];
+        }
+      }
+    }
+
+    $this->io()->writeln(json_encode($export, JSON_PRETTY_PRINT));
+
+    return 0;
+  }
+
+  /**
+   * Build React components.
+   *
+   * @command component:build
+   * @aliases cbuild
+   * @option watch Watch for changes and rebuild
+   * @option production Build for production
+   * @usage component:build
+   *   Build all React components.
+   * @usage component:build --watch
+   *   Watch and rebuild React components on change.
+   */
+  #[Command(
+    name: 'component:build',
+    aliases: ['cbuild']
+  )]
+  #[Option(
+    name: 'watch',
+    description: 'Watch for changes and rebuild'
+  )]
+  #[Option(
+    name: 'production',
+    description: 'Build for production'
+  )]
+  public function build($options = ['watch' => FALSE, 'production' => FALSE]) {
+    $module_path = $this->moduleExtensionList->getPath('component_entity');
+
+    $this->io()->title('Building React Components');
+
+    // Check if npm is installed.
+    $npm_check = shell_exec('npm --version 2>&1');
+    if (!$npm_check) {
+      $this->io()->error('npm is not installed. Please install Node.js and npm.');
+      return 1;
+    }
+
+    // Change to module directory.
+    chdir($module_path);
+
+    // Install dependencies if needed.
+    if (!file_exists('node_modules')) {
+      $this->io()->section('Installing dependencies...');
+      $this->io()->writeln(shell_exec('npm install 2>&1'));
+    }
+
+    // Build command.
+    $command = $options['watch'] ? 'npm run watch' : 'npm run build';
+
+    if ($options['production']) {
+      $command = 'npm run build:production';
+    }
+
+    $this->io()->section('Building components...');
+
+    if ($options['watch']) {
+      $this->io()->note('Watching for changes. Press Ctrl+C to stop.');
+    }
+
+    // Execute build.
+    passthru($command, $return_code);
+
+    if ($return_code === 0) {
+      $this->io()->success('Build completed successfully');
+    }
+    else {
+      $this->io()->error('Build failed');
+    }
+
+    return $return_code;
+  }
+
+  /**
+   * Clear component caches.
+   *
+   * @command component:cache-clear
+   * @aliases ccc
+   * @option type Clear caches for specific component type
+   * @usage component:cache-clear
+   *   Clear all component caches.
+   * @usage component:cache-clear --type=hero_banner
+   *   Clear caches for hero_banner components.
+   */
+  #[Command(
+    name: 'component:cache-clear',
+    aliases: ['ccc']
+  )]
+  #[Option(
+    name: 'type',
+    description: 'Clear caches for specific component type'
+  )]
+  public function cacheClear($options = ['type' => NULL]) {
+    if ($options['type']) {
+      $this->cacheManager->invalidateBundleCache($options['type']);
+      $this->io()->success(sprintf('Cleared caches for component type: %s', $options['type']));
+    }
+    else {
+      $this->cacheManager->clearAllComponentCaches();
+      $this->io()->success('Cleared all component caches');
+    }
+
+    return 0;
   }
 
   /**
@@ -397,186 +624,6 @@ class ComponentEntityCommands extends DrushCommands {
 
     $component->delete();
     $this->io()->success(sprintf('Deleted component ID %d', $id));
-
-    return 0;
-  }
-
-  /**
-   * Export a component to JSON.
-   *
-   * @command component:export
-   * @aliases cexp
-   * @argument id The component entity ID
-   * @option include-fields Include field configuration
-   * @usage component:export 123
-   *   Export component with ID 123 to JSON.
-   */
-  #[Command(
-    name: 'component:export',
-    aliases: ['cexp']
-  )]
-  #[Argument(
-    name: 'id',
-    description: 'The component entity ID'
-  )]
-  #[Option(
-    name: 'include-fields',
-    description: 'Include field configuration'
-  )]
-  public function export($id, $options = ['include-fields' => FALSE]) {
-    $component = $this->entityTypeManager
-      ->getStorage('component')
-      ->load($id);
-
-    if (!$component) {
-      $this->io()->error(sprintf('Component with ID %d not found', $id));
-      return 1;
-    }
-
-    $export = [
-      'id' => $component->id(),
-      'uuid' => $component->uuid(),
-      'type' => $component->bundle(),
-      'name' => $component->label(),
-      'render_method' => $component->getRenderMethod(),
-      'react_config' => $component->getReactConfig(),
-      'created' => $component->getCreatedTime(),
-      'changed' => $component->getChangedTime(),
-      'fields' => [],
-    ];
-
-    // Export field values.
-    foreach ($component->getFields() as $field_name => $field) {
-      if (strpos($field_name, 'field_') === 0 && !$field->isEmpty()) {
-        $export['fields'][$field_name] = $field->getValue();
-      }
-    }
-
-    // Include field configuration if requested.
-    if ($options['include-fields']) {
-      $export['field_config'] = [];
-      $fields = \Drupal::service('entity_field.manager')
-        ->getFieldDefinitions('component', $component->bundle());
-
-      foreach ($fields as $field_name => $field_definition) {
-        if (strpos($field_name, 'field_') === 0) {
-          $export['field_config'][$field_name] = [
-            'type' => $field_definition->getType(),
-            'label' => $field_definition->getLabel(),
-            'required' => $field_definition->isRequired(),
-            'cardinality' => $field_definition->getFieldStorageDefinition()->getCardinality(),
-          ];
-        }
-      }
-    }
-
-    $this->io()->writeln(json_encode($export, JSON_PRETTY_PRINT));
-
-    return 0;
-  }
-
-  /**
-   * Build React components.
-   *
-   * @command component:build
-   * @aliases cbuild
-   * @option watch Watch for changes and rebuild
-   * @option production Build for production
-   * @usage component:build
-   *   Build all React components.
-   * @usage component:build --watch
-   *   Watch and rebuild React components on change.
-   */
-  #[Command(
-    name: 'component:build',
-    aliases: ['cbuild']
-  )]
-  #[Option(
-    name: 'watch',
-    description: 'Watch for changes and rebuild'
-  )]
-  #[Option(
-    name: 'production',
-    description: 'Build for production'
-  )]
-  public function build($options = ['watch' => FALSE, 'production' => FALSE]) {
-    $module_path = \Drupal::service('extension.list.module')
-      ->getPath('component_entity');
-
-    $this->io()->title('Building React Components');
-
-    // Check if npm is installed.
-    $npm_check = shell_exec('npm --version 2>&1');
-    if (!$npm_check) {
-      $this->io()->error('npm is not installed. Please install Node.js and npm.');
-      return 1;
-    }
-
-    // Change to module directory.
-    chdir($module_path);
-
-    // Install dependencies if needed.
-    if (!file_exists('node_modules')) {
-      $this->io()->section('Installing dependencies...');
-      $this->io()->writeln(shell_exec('npm install 2>&1'));
-    }
-
-    // Build command.
-    $command = $options['watch'] ? 'npm run watch' : 'npm run build';
-
-    if ($options['production']) {
-      $command = 'npm run build:production';
-    }
-
-    $this->io()->section('Building components...');
-
-    if ($options['watch']) {
-      $this->io()->note('Watching for changes. Press Ctrl+C to stop.');
-    }
-
-    // Execute build.
-    passthru($command, $return_code);
-
-    if ($return_code === 0) {
-      $this->io()->success('Build completed successfully');
-    }
-    else {
-      $this->io()->error('Build failed');
-    }
-
-    return $return_code;
-  }
-
-  /**
-   * Clear component caches.
-   *
-   * @command component:cache-clear
-   * @aliases ccc
-   * @option type Clear caches for specific component type
-   * @usage component:cache-clear
-   *   Clear all component caches.
-   * @usage component:cache-clear --type=hero_banner
-   *   Clear caches for hero_banner components.
-   */
-  #[Command(
-    name: 'component:cache-clear',
-    aliases: ['ccc']
-  )]
-  #[Option(
-    name: 'type',
-    description: 'Clear caches for specific component type'
-  )]
-  public function cacheClear($options = ['type' => NULL]) {
-    $cache_manager = \Drupal::service('component_entity.cache_manager');
-
-    if ($options['type']) {
-      $cache_manager->invalidateBundleCache($options['type']);
-      $this->io()->success(sprintf('Cleared caches for component type: %s', $options['type']));
-    }
-    else {
-      $cache_manager->clearAllComponentCaches();
-      $this->io()->success('Cleared all component caches');
-    }
 
     return 0;
   }

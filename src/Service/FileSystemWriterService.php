@@ -18,36 +18,50 @@ use Drupal\component_entity\Event\FileWriteEvent;
 class FileSystemWriterService {
 
   /**
+   * The file system service.
+   *
    * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
+   * The module handler service.
+   *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
+   * The theme handler service.
+   *
    * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
 
   /**
+   * The configuration factory.
+   *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
   /**
+   * The current user service.
+   *
    * @var \Drupal\Core\Session\AccountProxyInterface
    */
   protected $currentUser;
 
   /**
+   * The logger channel.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
   /**
+   * The event dispatcher service.
+   *
    * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
