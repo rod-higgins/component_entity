@@ -4,6 +4,7 @@ namespace Drupal\component_entity\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityBundleBase;
 use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Defines the Component type entity.
@@ -57,6 +58,8 @@ use Drupal\Core\Entity\EntityStorageInterface;
  * )
  */
 class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInterface {
+
+  use StringTranslationTrait;
 
   /**
    * The Component type ID.
@@ -152,6 +155,23 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
       'default_method' => 'twig',
       'react_library' => NULL,
     ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getAvailableRenderMethods() {
+    $methods = [];
+
+    if ($this->isTwigEnabled()) {
+      $methods['twig'] = $this->t('Twig (Server-side)');
+    }
+
+    if ($this->isReactEnabled()) {
+      $methods['react'] = $this->t('React (Client-side)');
+    }
+
+    return $methods;
   }
 
   /**
@@ -278,23 +298,6 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
    */
   public function hasThemeVariations() {
     return $this->getSetting('theme_variations', FALSE);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getAvailableRenderMethods() {
-    $methods = [];
-
-    if ($this->isTwigEnabled()) {
-      $methods['twig'] = t('Twig (Server-side)');
-    }
-
-    if ($this->isReactEnabled()) {
-      $methods['react'] = t('React (Client-side)');
-    }
-
-    return $methods;
   }
 
   /**
