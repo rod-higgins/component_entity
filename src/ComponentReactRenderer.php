@@ -8,6 +8,7 @@ use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Plugin\Component\ComponentPluginManager;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
  * Handles React rendering for component entities.
@@ -57,6 +58,20 @@ class ComponentReactRenderer {
   protected $requestStack;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The library discovery service.
+   *
+   * @var \Drupal\Core\Asset\LibraryDiscoveryInterface
+   */
+  protected $libraryDiscovery;
+
+  /**
    * Constructs a ComponentReactRenderer object.
    */
   public function __construct(
@@ -66,6 +81,8 @@ class ComponentReactRenderer {
     AssetCollectionRendererInterface $css_collection_renderer,
     AssetCollectionRendererInterface $js_collection_renderer,
     RequestStack $request_stack,
+    EntityTypeManagerInterface $entity_type_manager,
+    $library_discovery,
   ) {
     $this->renderer = $renderer;
     $this->componentManager = $component_manager;
@@ -73,6 +90,8 @@ class ComponentReactRenderer {
     $this->cssCollectionRenderer = $css_collection_renderer;
     $this->jsCollectionRenderer = $js_collection_renderer;
     $this->requestStack = $request_stack;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->libraryDiscovery = $library_discovery;
   }
 
   /**
@@ -102,12 +121,8 @@ class ComponentReactRenderer {
       '#component_type' => $bundle,
       '#entity_id' => $entity->id(),
       '#hydration_method' => $react_config['hydration'] ?? 'full',
-      '#attributes' => [
-        'class' => ['component-react-root'],
-        'id' => $component_id,
-        'data-component' => $bundle,
-        'data-hydration' => $react_config['hydration'] ?? 'full',
-      ],
+      '#props' => $props,
+      '#slots' => $slots,
       '#attached' => [
         'library' => [
           'component_entity/react-renderer',
@@ -119,41 +134,29 @@ class ComponentReactRenderer {
                 'type' => $bundle,
                 'props' => $props,
                 'slots' => $slots,
-                'config' => $react_config,
-                'entityId' => $entity->id(),
-                'viewMode' => $view_mode,
+                'hydration' => $react_config['hydration'] ?? 'full',
               ],
             ],
           ],
         ],
       ],
-      '#cache' => [
-        'tags' => $entity->getCacheTags(),
-        'contexts' => $entity->getCacheContexts(),
-        'max-age' => $entity->getCacheMaxAge(),
-      ],
     ];
 
-    // Add component-specific library if it exists.
-    $library = "component_entity/component.$bundle";
-    if ($this->libraryExists($library)) {
-      $build['#attached']['library'][] = $library;
+    // Add React library if configured.
+    if (!empty($react_config['library'])) {
+      if ($this->libraryExists($react_config['library'])) {
+        $build['#attached']['library'][] = $react_config['library'];
+      }
     }
 
-    // Handle SSR if configured.
+    // Add server-side rendered content if enabled.
     if (!empty($react_config['ssr'])) {
       $build['#ssr_content'] = $this->getServerSideRendered($entity, $props, $slots);
     }
 
-    // Handle progressive enhancement.
+    // Add progressive enhancement fallback.
     if (!empty($react_config['progressive'])) {
-      $build['#fallback_content'] = $this->getTwigFallback($entity, $view_mode);
-    }
-
-    // Add loading placeholder based on configuration.
-    if (!empty($react_config['show_loading'])) {
-      $build['#loading_placeholder'] = TRUE;
-      $build['#show_spinner'] = $react_config['show_spinner'] ?? TRUE;
+      $build['#fallback'] = $this->getTwigFallback($entity, $view_mode);
     }
 
     return $build;
@@ -287,7 +290,8 @@ class ComponentReactRenderer {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    // Fixed: Remove unused $delta variable.
+    foreach ($field as $item) {
       if ($entity = $item->entity) {
         $values[] = [
           'id' => $entity->id(),
@@ -318,7 +322,8 @@ class ComponentReactRenderer {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    // Fixed: Remove unused $delta variable.
+    foreach ($field as $item) {
       if ($file = $item->entity) {
         $values[] = [
           'url' => $file->createFileUrl(),
@@ -348,7 +353,8 @@ class ComponentReactRenderer {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    // Fixed: Remove unused $delta variable.
+    foreach ($field as $item) {
       $values[] = [
         'url' => $item->getUrl()->toString(),
         'title' => $item->title,
@@ -374,7 +380,8 @@ class ComponentReactRenderer {
     }
 
     $values = [];
-    foreach ($field as $delta => $item) {
+    // Fixed: Remove unused $delta variable.
+    foreach ($field as $item) {
       // Check if field has format.
       if (isset($item->format)) {
         // Process through text format.
@@ -477,7 +484,8 @@ class ComponentReactRenderer {
    *   The SDC component ID or NULL.
    */
   protected function getSdcId($bundle) {
-    $component_type = \Drupal::entityTypeManager()
+    // Fixed: Use dependency injection instead of \Drupal.
+    $component_type = $this->entityTypeManager
       ->getStorage('component_type')
       ->load($bundle);
 
@@ -495,7 +503,8 @@ class ComponentReactRenderer {
    */
   protected function libraryExists($library) {
     [$extension, $name] = explode('/', $library);
-    $libraries = \Drupal::service('library.discovery')->getLibrariesByExtension($extension);
+    // Fixed: Use dependency injection instead of \Drupal.
+    $libraries = $this->libraryDiscovery->getLibrariesByExtension($extension);
     return isset($libraries[$name]);
   }
 
