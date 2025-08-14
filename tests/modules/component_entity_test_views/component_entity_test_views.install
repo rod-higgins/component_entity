@@ -2,17 +2,10 @@
 
 /**
  * @file
- * Provides test views data for Component Entity module.
+ * Install functions for Component Entity Test Views module.
  */
 
 use Drupal\views\Views;
-
-/**
- * Implements hook_views_data_alter().
- */
-function component_entity_test_views_views_data_alter(array &$data) {
-  // Add test-specific views data if needed.
-}
 
 /**
  * Implements hook_install().
@@ -57,12 +50,4 @@ function component_entity_test_views_install() {
     ],
   ]);
   $view->save();
-}
-
-/**
- * Implements hook_views_data_alter().
- */
-function component_entity_test_views_views_data_alter(array &$data) {
-  // Add test-specific views data if needed
-  // Empty for now.
 }
