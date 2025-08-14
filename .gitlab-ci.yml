@@ -1,0 +1,328 @@
+# GitLab CI for Component Entity Module - Drupal 10/11 Testing
+# Optimized for drupal.org testing infrastructure
+
+# Use official Drupal CI image
+image: drupal:11-php8.3-apache
+
+# Global variables
+variables:
+  MYSQL_DATABASE: drupal
+  MYSQL_ROOT_PASSWORD: drupal
+  MYSQL_USER: drupal
+  MYSQL_PASSWORD: drupal
+  SIMPLETEST_DB: "mysql://drupal:drupal@mariadb/drupal"
+  SIMPLETEST_BASE_URL: "http://localhost"
+  BROWSERTEST_OUTPUT_DIRECTORY: "/var/www/html/sites/default/files/simpletest"
+  COMPOSER_MEMORY_LIMIT: "-1"
+  COMPOSER_ALLOW_SUPERUSER: "1"
+  PHP_MEMORY_LIMIT: "256M"
+
+# Database service
+services:
+  - mariadb:10.11
+
+# CI stages
+stages:
+  - prepare
+  - validate
+  - test
+  - coverage
+
+# Cache configuration
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - vendor/
+    - web/core/
+    - web/modules/contrib/
+    - web/themes/contrib/
+    - node_modules/
+
+# Shared before_script for all jobs
+.default_before_script: &default_before_script
+  # Update package lists
+  - apt-get update -yqq
+  # Install required system packages
+  - apt-get install -yqq git unzip libpng-dev libjpeg-dev libpq-dev libzip-dev nodejs npm
+  # Configure and install PHP extensions
+  - docker-php-ext-configure gd --with-jpeg
+  - docker-php-ext-install gd pdo_mysql zip opcache
+  # Install Composer 2
+  - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version=2
+  # Verify installations
+  - php --version
+  - composer --version
+  - node --version
+
+# Template for Drupal setup
+.drupal_setup: &drupal_setup
+  - composer gitlab-ci-setup
+  - mkdir -p web/sites/default/files web/sites/simpletest $BROWSERTEST_OUTPUT_DIRECTORY
+  - chmod -R 755 web/sites
+  - chown -R www-data:www-data web/sites/default/files
+
+# Prepare stage - Install dependencies
+prepare:dependencies:
+  stage: prepare
+  before_script: *default_before_script
+  script:
+    # Install PHP dependencies using our composer script
+    - composer install --no-interaction --prefer-dist --optimize-autoloader
+    
+    # Ensure component_entity module is in the right place
+    - composer prepare-tests
+    
+    # Install Node dependencies if package.json exists
+    - composer build || true
+    
+    # Create required directories
+    - mkdir -p web/sites/default/files web/sites/simpletest
+    - chmod -R 755 web/sites
+    
+    # Generate optimized autoloader
+    - composer dump-autoload --optimize
+    
+    - echo "Dependencies installed successfully"
+  artifacts:
+    paths:
+      - vendor/
+      - web/
+      - node_modules/
+    expire_in: 2 hours
+
+# Validation stage - Code quality checks
+validate:phpcs:
+  stage: validate
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    - echo "Running PHP Code Sniffer..."
+    - composer test-phpcs
+  allow_failure: false
+  artifacts:
+    reports:
+      codequality: phpcs-report.json
+    when: on_failure
+
+validate:phpstan:
+  stage: validate
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    - echo "Running PHPStan analysis..."
+    - composer test-phpstan
+  allow_failure: true
+  artifacts:
+    reports:
+      codequality: phpstan-report.json
+    when: on_failure
+
+validate:security:
+  stage: validate
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    - echo "Checking for security vulnerabilities..."
+    - composer check-security
+  allow_failure: true
+
+# Test stage - PHPUnit tests
+test:unit:
+  stage: test
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    # Setup Drupal
+    - *drupal_setup
+    
+    # Run unit tests
+    - echo "Running unit tests..."
+    - composer test-phpunit-unit
+  artifacts:
+    reports:
+      junit: junit-unit.xml
+    paths:
+      - junit-unit.xml
+    when: always
+    expire_in: 1 week
+
+test:kernel:
+  stage: test
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    # Wait for database
+    - sleep 10
+    
+    # Setup Drupal
+    - *drupal_setup
+    
+    # Run kernel tests
+    - echo "Running kernel tests..."
+    - composer test-phpunit-kernel
+  artifacts:
+    reports:
+      junit: junit-kernel.xml
+    paths:
+      - junit-kernel.xml
+    when: always
+    expire_in: 1 week
+
+test:functional:
+  stage: test
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    # Wait for database
+    - sleep 10
+    
+    # Setup Drupal
+    - *drupal_setup
+    
+    # Start PHP built-in server for functional tests
+    - cd web && php -S 0.0.0.0:8080 > /dev/null 2>&1 &
+    - sleep 5
+    - cd ..
+    
+    # Run functional tests
+    - echo "Running functional tests..."
+    - composer test-phpunit-functional
+  artifacts:
+    reports:
+      junit: junit-functional.xml
+    paths:
+      - junit-functional.xml
+      - $BROWSERTEST_OUTPUT_DIRECTORY
+    when: always
+    expire_in: 1 week
+
+test:functional-javascript:
+  stage: test
+  needs: ["prepare:dependencies"]
+  services:
+    - mariadb:10.11
+    - name: selenium/standalone-chrome:latest
+      alias: chrome
+  variables:
+    MINK_DRIVER_ARGS_WEBDRIVER: '["chrome", {"browserName":"chrome","chromeOptions":{"args":["--disable-dev-shm-usage","--no-sandbox","--headless"]}}, "http://chrome:4444"]'
+  before_script: *default_before_script
+  script:
+    # Wait for services
+    - sleep 15
+    
+    # Setup Drupal
+    - *drupal_setup
+    
+    # Start PHP built-in server
+    - cd web && php -S 0.0.0.0:8080 > /dev/null 2>&1 &
+    - sleep 5
+    - cd ..
+    
+    # Run functional JavaScript tests
+    - echo "Running functional JavaScript tests..."
+    - composer test-phpunit-functional-javascript
+  artifacts:
+    reports:
+      junit: junit-functional-javascript.xml
+    paths:
+      - junit-functional-javascript.xml
+      - $BROWSERTEST_OUTPUT_DIRECTORY
+    when: always
+    expire_in: 1 week
+  allow_failure: true
+
+# Coverage stage - Generate code coverage
+coverage:report:
+  stage: coverage
+  needs: ["test:unit", "test:kernel", "test:functional"]
+  before_script: *default_before_script
+  coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+  script:
+    # Setup Drupal
+    - *drupal_setup
+    
+    # Install xdebug for coverage
+    - pecl install xdebug
+    - docker-php-ext-enable xdebug
+    
+    # Generate coverage report
+    - echo "Generating code coverage report..."
+    - composer coverage
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage/
+      - coverage.xml
+    when: always
+    expire_in: 1 month
+  only:
+    - main
+    - develop
+    - merge_requests
+
+# Quick test for merge requests
+test:quick:
+  stage: test
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    # Run all validation checks
+    - composer gitlab-ci-validate
+    
+    # Setup and run quick tests
+    - composer gitlab-ci-setup
+    - composer test-phpunit-unit
+  only:
+    - merge_requests
+  except:
+    - main
+    - develop
+
+# Nightly full test suite
+test:nightly:
+  stage: test
+  needs: ["prepare:dependencies"]
+  before_script: *default_before_script
+  script:
+    # Full setup
+    - composer gitlab-ci-setup
+    
+    # Run complete test suite
+    - composer test
+    
+    # Generate full coverage
+    - composer coverage
+  only:
+    - schedules
+  artifacts:
+    paths:
+      - coverage/
+    expire_in: 1 month
+
+# Deploy to drupal.org (only for tags)
+deploy:drupalorg:
+  stage: coverage
+  needs: ["test:unit", "test:kernel", "test:functional", "validate:phpcs", "validate:security"]
+  before_script: *default_before_script
+  script:
+    - echo "Preparing for drupal.org deployment..."
+    - composer install --no-dev --optimize-autoloader
+    - rm -rf .git .gitlab-ci.yml phpunit.xml.dist tests/
+    - echo "Ready for packaging"
+  artifacts:
+    paths:
+      - ./
+    exclude:
+      - vendor/
+      - node_modules/
+      - .git/
+      - tests/
+      - .gitlab-ci.yml
+      - phpunit.xml.dist
+      - phpstan.neon
+    expire_in: 1 month
+  only:
+    - tags

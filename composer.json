@@ -2,7 +2,7 @@
   "name": "drupal/component_entity",
   "description": "Seamless bridge between SDC (Single Directory Components) and Drupal entity system with Twig and React rendering support.",
   "type": "drupal-module",
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "homepage": "https://www.drupal.org/project/component_entity",
   "keywords": [
     "Drupal",
@@ -14,9 +14,8 @@
   ],
   "authors": [
     {
-      "name": "Rod Higgins",
-      "email": "rod.higgins@gmail.com",
-      "role": "Maintainer"
+      "name": "See contributors",
+      "homepage": "https://www.drupal.org/node/3468578/committers"
     }
   ],
   "support": {
@@ -25,28 +24,75 @@
   },
   "require": {
     "php": ">=8.1",
-    "drupal/core": "^10.2 || ^11",
-    "ext-json": "*"
+    "drupal/core": "^10.2 || ^11"
   },
   "require-dev": {
     "drupal/core-dev": "^10.2 || ^11",
-    "phpunit/phpunit": "^9.5",
+    "phpunit/phpunit": "^9.5 || ^10",
     "phpspec/prophecy-phpunit": "^2",
-    "symfony/css-selector": "^6.3",
+    "symfony/css-selector": "^6.3 || ^7",
     "behat/mink": "^1.10",
     "behat/mink-selenium2-driver": "^1.6",
     "friends-of-behat/mink-browserkit-driver": "^1.6",
     "mikey179/vfsstream": "^1.6",
     "phpstan/phpstan": "^1.10",
-    "drupal/coder": "^8.3"
+    "phpstan/phpstan-deprecation-rules": "^1.1",
+    "phpstan/phpstan-phpunit": "^1.3",
+    "mglaman/phpstan-drupal": "^1.2",
+    "drupal/coder": "^8.3",
+    "squizlabs/php_codesniffer": "^3.7",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "drupal/drupal-extension": "^5.0",
+    "drush/drush": "^12 || ^13"
   },
   "suggest": {
     "npm": "Required for building React components (npm install)",
     "drupal/token": "Provides additional token support for component fields"
   },
+  "conflict": {
+    "drupal/core": "<10.2"
+  },
   "minimum-stability": "dev",
   "prefer-stable": true,
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "composer/installers": true,
+      "drupal/core-composer-scaffold": true,
+      "drupal/core-project-message": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpstan/extension-installer": true,
+      "cweagans/composer-patches": true,
+      "php-http/discovery": true
+    },
+    "platform": {
+      "php": "8.1"
+    },
+    "preferred-install": {
+      "drupal/core": "dist"
+    }
+  },
   "extra": {
+    "drupal-scaffold": {
+      "locations": {
+        "web-root": "web/"
+      }
+    },
+    "installer-paths": {
+      "web/core": ["type:drupal-core"],
+      "web/libraries/{$name}": ["type:drupal-library"],
+      "web/modules/contrib/{$name}": ["type:drupal-module"],
+      "web/profiles/contrib/{$name}": ["type:drupal-profile"],
+      "web/themes/contrib/{$name}": ["type:drupal-theme"],
+      "drush/Commands/contrib/{$name}": ["type:drupal-drush"],
+      "web/modules/custom/{$name}": ["type:drupal-custom-module"],
+      "web/profiles/custom/{$name}": ["type:drupal-custom-profile"],
+      "web/themes/custom/{$name}": ["type:drupal-custom-theme"]
+    },
+    "patches": {},
+    "patchLevel": {
+      "drupal/core": "-p2"
+    },
     "drupal": {
       "version": "1.0.x-dev",
       "datestamp": "0",
@@ -57,46 +103,130 @@
     },
     "drush": {
       "services": {
-        "drush.services.yml": "^10 || ^11 || ^12"
+        "drush.services.yml": "^11 || ^12 || ^13"
       }
     }
   },
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://packages.drupal.org/8"
+    }
+  ],
   "scripts": {
+    "pre-install-cmd": [
+      "Drupal\\Core\\Composer\\Composer::preInstall"
+    ],
     "post-install-cmd": [
-      "@npm-install"
+      "Drupal\\Core\\Composer\\Composer::ensureComposerVersion",
+      "@composer run prepare-tests"
+    ],
+    "pre-update-cmd": [
+      "Drupal\\Core\\Composer\\Composer::preInstall"
     ],
     "post-update-cmd": [
-      "@npm-install"
+      "Drupal\\Core\\Composer\\Composer::ensureComposerVersion",
+      "@composer run prepare-tests"
     ],
-    "npm-install": [
-      "cd modules/contrib/component_entity && npm install"
-    ],
-    "build": [
-      "cd modules/contrib/component_entity && npm run build"
-    ],
-    "watch": [
-      "cd modules/contrib/component_entity && npm run watch"
+    "prepare-tests": [
+      "rm -rf web/modules/contrib/component_entity",
+      "mkdir -p web/modules/contrib",
+      "ln -s ../../../../ web/modules/contrib/component_entity"
     ],
     "test": [
-      "@test-unit",
-      "@test-kernel",
-      "@test-functional"
+      "@test-phpunit",
+      "@test-phpcs",
+      "@test-phpstan"
     ],
-    "test-unit": "phpunit --configuration core/phpunit.xml.dist --testsuite unit --group component_entity",
-    "test-kernel": "phpunit --configuration core/phpunit.xml.dist --testsuite kernel --group component_entity",
-    "test-functional": "phpunit --configuration core/phpunit.xml.dist --testsuite functional --group component_entity",
-    "phpcs": "phpcs --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,css,info,txt,md,yml modules/contrib/component_entity",
-    "phpcbf": "phpcbf --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,css,info,txt,md,yml modules/contrib/component_entity",
-    "phpstan": "phpstan analyse modules/contrib/component_entity"
+    "test-phpunit": [
+      "@test-phpunit-unit",
+      "@test-phpunit-kernel",
+      "@test-phpunit-functional"
+    ],
+    "test-phpunit-unit": [
+      "phpunit --configuration phpunit.xml.dist --testsuite unit --group component_entity"
+    ],
+    "test-phpunit-kernel": [
+      "phpunit --configuration phpunit.xml.dist --testsuite kernel --group component_entity"
+    ],
+    "test-phpunit-functional": [
+      "phpunit --configuration phpunit.xml.dist --testsuite functional --group component_entity"
+    ],
+    "test-phpunit-functional-javascript": [
+      "phpunit --configuration phpunit.xml.dist --testsuite functional-javascript --group component_entity"
+    ],
+    "test-phpcs": [
+      "phpcs --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,txt,md,yml --ignore=node_modules,vendor,web ."
+    ],
+    "test-phpstan": [
+      "phpstan analyse --memory-limit=256M --level=5 src tests"
+    ],
+    "fix-phpcs": [
+      "phpcbf --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,txt,md,yml --ignore=node_modules,vendor,web ."
+    ],
+    "check-security": [
+      "composer audit"
+    ],
+    "drupal-install": [
+      "drush site:install standard --yes --db-url=sqlite://sites/default/files/.ht.sqlite --site-name='Component Entity Test' --account-name=admin --account-pass=admin"
+    ],
+    "drupal-enable": [
+      "drush en component_entity -y"
+    ],
+    "gitlab-ci-setup": [
+      "@composer install --no-interaction --prefer-dist --optimize-autoloader",
+      "@drupal-install",
+      "@drupal-enable"
+    ],
+    "gitlab-ci-validate": [
+      "@test-phpcs",
+      "@test-phpstan",
+      "@check-security"
+    ],
+    "gitlab-ci-test": [
+      "@test-phpunit"
+    ],
+    "coverage": [
+      "phpunit --configuration phpunit.xml.dist --coverage-html coverage --coverage-clover coverage.xml"
+    ],
+    "npm-install": [
+      "test -f package.json && npm install || echo 'No package.json found'"
+    ],
+    "npm-build": [
+      "test -f package.json && npm run build || echo 'No package.json found'"
+    ],
+    "build": [
+      "@npm-install",
+      "@npm-build"
+    ]
   },
-  "config": {
-    "sort-packages": true,
-    "allow-plugins": {
-      "composer/installers": true,
-      "drupal/core-composer-scaffold": true,
-      "drupal/core-project-message": true,
-      "dealerdirect/phpcodesniffer-composer-installer": true,
-      "cweagans/composer-patches": true
+  "scripts-descriptions": {
+    "test": "Run all tests (PHPUnit, PHPCS, PHPStan)",
+    "test-phpunit": "Run all PHPUnit test suites",
+    "test-phpunit-unit": "Run PHPUnit unit tests",
+    "test-phpunit-kernel": "Run PHPUnit kernel tests",
+    "test-phpunit-functional": "Run PHPUnit functional tests",
+    "test-phpunit-functional-javascript": "Run PHPUnit functional JavaScript tests",
+    "test-phpcs": "Run PHP Code Sniffer",
+    "test-phpstan": "Run PHPStan analysis",
+    "fix-phpcs": "Fix PHP Code Sniffer violations automatically",
+    "check-security": "Check for security vulnerabilities in dependencies",
+    "drupal-install": "Install Drupal with SQLite database",
+    "drupal-enable": "Enable the Component Entity module",
+    "gitlab-ci-setup": "Setup for GitLab CI testing",
+    "gitlab-ci-validate": "Run validation checks for GitLab CI",
+    "gitlab-ci-test": "Run tests for GitLab CI",
+    "coverage": "Generate code coverage report",
+    "build": "Build JavaScript/React components"
+  },
+  "autoload": {
+    "psr-4": {
+      "Drupal\\component_entity\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Drupal\\Tests\\component_entity\\": "tests/src/"
     }
   }
 }

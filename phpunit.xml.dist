@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PHPUnit configuration for Component Entity module testing -->
+<!-- Compatible with Drupal 10/11 and GitLab CI -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+         bootstrap="web/core/tests/bootstrap.php"
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutChangesToGlobalState="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         cacheResult="false"
+         colors="true"
+         stderr="true"
+         reverseDefList="true"
+         convertDeprecationsToExceptions="false"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         testdox="false"
+         verbose="true">
+
+  <!-- Test Suite Configuration -->
+  <testsuites>
+    <!-- Unit Test Suite -->
+    <testsuite name="unit">
+      <directory>web/modules/contrib/component_entity/tests/src/Unit</directory>
+      <directory>tests/src/Unit</directory>
+    </testsuite>
+    
+    <!-- Kernel Test Suite -->
+    <testsuite name="kernel">
+      <directory>web/modules/contrib/component_entity/tests/src/Kernel</directory>
+      <directory>tests/src/Kernel</directory>
+    </testsuite>
+    
+    <!-- Functional Test Suite -->
+    <testsuite name="functional">
+      <directory>web/modules/contrib/component_entity/tests/src/Functional</directory>
+      <directory>tests/src/Functional</directory>
+    </testsuite>
+    
+    <!-- Functional JavaScript Test Suite -->
+    <testsuite name="functional-javascript">
+      <directory>web/modules/contrib/component_entity/tests/src/FunctionalJavascript</directory>
+      <directory>tests/src/FunctionalJavascript</directory>
+    </testsuite>
+    
+    <!-- Build Test Suite (for CI validation) -->
+    <testsuite name="build">
+      <directory>web/modules/contrib/component_entity/tests/src/Build</directory>
+      <directory>tests/src/Build</directory>
+    </testsuite>
+    
+    <!-- All Tests -->
+    <testsuite name="all">
+      <directory>web/modules/contrib/component_entity/tests/src</directory>
+      <directory>tests/src</directory>
+    </testsuite>
+  </testsuites>
+
+  <!-- Code Coverage Configuration -->
+  <coverage includeUncoveredFiles="true"
+            processUncoveredFiles="true"
+            pathCoverage="false"
+            cacheDirectory=".phpunit.cache/code-coverage">
+    <include>
+      <directory suffix=".php">web/modules/contrib/component_entity/src</directory>
+      <directory suffix=".php">src</directory>
+    </include>
+    <exclude>
+      <directory>web/modules/contrib/component_entity/tests</directory>
+      <directory>tests</directory>
+      <directory>vendor</directory>
+      <directory>web/core</directory>
+      <directory>web/modules/contrib/component_entity/src/Tests</directory>
+      <file>web/modules/contrib/component_entity/component_entity.install</file>
+      <file>web/modules/contrib/component_entity/component_entity.module</file>
+    </exclude>
+    <report>
+      <clover outputFile="coverage.xml"/>
+      <html outputDirectory="coverage" lowUpperBound="35" highLowerBound="70"/>
+      <text outputFile="coverage.txt" showUncoveredFiles="true" showOnlySummary="false"/>
+      <xml outputDirectory="coverage/xml"/>
+    </report>
+  </coverage>
+
+  <!-- Logging Configuration -->
+  <logging>
+    <junit outputFile="junit.xml"/>
+    <testdoxHtml outputFile="testdox.html"/>
+    <testdoxText outputFile="testdox.txt"/>
+  </logging>
+
+  <!-- PHP Configuration -->
+  <php>
+    <!-- Set error reporting to E_ALL -->
+    <ini name="error_reporting" value="32767"/>
+    
+    <!-- Memory limit for tests -->
+    <ini name="memory_limit" value="256M"/>
+    
+    <!-- Increase timeout for functional tests -->
+    <ini name="max_execution_time" value="300"/>
+    
+    <!-- Do not limit the amount of memory tests take to run -->
+    <env name="SYMFONY_DEPRECATIONS_HELPER" value="disabled"/>
+    
+    <!-- Drupal specific environment variables -->
+    <env name="SIMPLETEST_BASE_URL" value="http://localhost:8080"/>
+    <env name="SIMPLETEST_DB" value="mysql://drupal:drupal@mariadb/drupal"/>
+    <env name="BROWSERTEST_OUTPUT_DIRECTORY" value="web/sites/default/files/simpletest"/>
+    <env name="BROWSERTEST_OUTPUT_BASE_URL" value="http://localhost:8080"/>
+    
+    <!-- Mink driver configuration for functional JavaScript tests -->
+    <env name="MINK_DRIVER_CLASS" value="Drupal\FunctionalJavascriptTests\DrupalSelenium2Driver"/>
+    <env name="MINK_DRIVER_ARGS" value='["chrome", {"browserName":"chrome","chromeOptions":{"args":["--disable-gpu","--headless","--no-sandbox","--disable-dev-shm-usage"]}}, "http://localhost:4444"]'/>
+    <env name="MINK_DRIVER_ARGS_WEBDRIVER" value='["chrome", {"browserName":"chrome","chromeOptions":{"args":["--disable-gpu","--headless","--no-sandbox","--disable-dev-shm-usage"]}}, "http://localhost:4444"]'/>
+    
+    <!-- Additional test environment variables -->
+    <env name="DTT_BASE_URL" value="http://localhost:8080"/>
+    <env name="DTT_API_URL" value="http://localhost:9222"/>
+    <env name="DTT_MINK_DRIVER_ARGS" value='["chrome", {"browserName":"chrome","chromeOptions":{"args":["--disable-gpu","--headless"]}}, "http://localhost:4444"]'/>
+    <env name="SYMFONY_DEPRECATIONS_HELPER" value="weak"/>
+  </php>
+
+  <!-- Test Listeners -->
+  <listeners>
+    <listener class="\Drupal\Tests\Listeners\DrupalListener"/>
+    <listener class="\Drupal\Tests\Listeners\DrupalStandardsListener"/>
+  </listeners>
+
+  <!-- Extensions (PHPUnit 9.5+) -->
+  <extensions>
+    <extension class="Drupal\TestTools\Extension\DeprecationBridge\DeprecationBridgeExtension"/>
+    <extension class="Drupal\TestTools\Extension\HtmlLogging\HtmlOutputLogger">
+      <arguments>
+        <string>web/sites/default/files/simpletest</string>
+      </arguments>
+    </extension>
+  </extensions>
+
+  <!-- Test Groups Configuration -->
+  <groups>
+    <!-- Define the component_entity test group -->
+    <include>
+      <group>component_entity</group>
+    </include>
+    
+    <!-- Exclude slow or problematic test groups by default -->
+    <exclude>
+      <group>@slow</group>
+      <group>@requires-internet</group>
+    </exclude>
+  </groups>
+
+  <!-- Source files for code coverage -->
+  <source>
+    <include>
+      <directory suffix=".php">web/modules/contrib/component_entity/src</directory>
+      <directory suffix=".php">src</directory>
+      <directory suffix=".module">web/modules/contrib/component_entity</directory>
+      <directory suffix=".install">web/modules/contrib/component_entity</directory>
+      <directory suffix=".inc">web/modules/contrib/component_entity</directory>
+    </include>
+    <exclude>
+      <directory>web/modules/contrib/component_entity/tests</directory>
+      <directory>tests</directory>
+      <directory>vendor</directory>
+      <directory>web/core</directory>
+      <directory>node_modules</directory>
+    </exclude>
+  </source>
+</phpunit>
