@@ -1,0 +1,281 @@
+name: Drupal 11 CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DRUPAL_VERSION: "11.0.x"
+  PHP_VERSION: "8.3"
+  NODE_VERSION: "20"
+  COMPOSER_MEMORY_LIMIT: -1
+
+jobs:
+  phpunit-tests:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: drupal_test
+          MYSQL_USER: drupal
+          MYSQL_PASSWORD: drupal
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pdo, mysql, pdo_mysql, bcmath, gd, exif, iconv, opcache, imagick
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-suggest --optimize-autoloader
+          composer require drupal/core-dev:${{ env.DRUPAL_VERSION }} --dev --no-update
+          composer update
+
+      - name: Install Drupal
+        run: |
+          cd web
+          ../vendor/bin/drush site:install standard \
+            --db-url=mysql://drupal:drupal@127.0.0.1:3306/drupal_test \
+            --site-name="Drupal Test Site" \
+            --site-mail="test@example.com" \
+            --account-name="admin" \
+            --account-pass="admin" \
+            --account-mail="admin@example.com" \
+            --yes
+
+      - name: Run PHPUnit tests
+        run: |
+          # Unit tests
+          ./vendor/bin/phpunit -c phpunit.xml.dist --testsuite unit
+          
+          # Kernel tests
+          ./vendor/bin/phpunit -c phpunit.xml.dist --testsuite kernel
+          
+          # Functional tests
+          ./vendor/bin/phpunit -c phpunit.xml.dist --testsuite functional
+
+      - name: Generate coverage report
+        if: success()
+        run: |
+          ./vendor/bin/phpunit -c phpunit.xml.dist --coverage-html coverage --coverage-clover coverage.xml
+
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: phpunit
+          name: codecov-umbrella
+
+  coding-standards:
+    name: Coding Standards
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer:v2, phpcs, phpmd, phpstan
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-suggest
+          composer require drupal/coder --dev
+
+      - name: Run PHP Code Sniffer
+        run: |
+          ./vendor/bin/phpcs --standard=Drupal,DrupalPractice \
+            --extensions=php,module,inc,install,test,profile,theme \
+            --ignore=*/vendor/*,*/node_modules/*,*/web/core/*,*/web/modules/contrib/* \
+            web/modules/custom web/themes/custom
+
+      - name: Run PHPStan
+        run: |
+          ./vendor/bin/phpstan analyse \
+            --level 5 \
+            --configuration phpstan.neon \
+            web/modules/custom
+
+      - name: Run PHPMD
+        run: |
+          ./vendor/bin/phpmd web/modules/custom text cleancode,codesize,controversial,design,naming,unusedcode \
+            --exclude vendor,node_modules,web/core,web/modules/contrib
+
+  javascript-tests:
+    name: JavaScript Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install Node dependencies
+        run: |
+          cd web/core
+          npm ci
+          cd ../../
+          if [ -f "web/themes/custom/*/package.json" ]; then
+            cd web/themes/custom/*
+            npm ci
+          fi
+
+      - name: Run ESLint
+        run: |
+          cd web/core
+          npm run lint:core-js-passing
+
+      - name: Run JavaScript tests
+        run: |
+          cd web/core
+          npm test
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest
+
+      - name: Security check for PHP dependencies
+        run: composer audit
+
+      - name: Check for outdated dependencies
+        run: composer outdated --direct
+
+  visual-regression:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    services:
+      selenium:
+        image: selenium/standalone-chrome:latest
+        ports:
+          - 4444:4444
+        options: >-
+          --shm-size=2gb
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pdo, mysql, pdo_mysql, bcmath, gd
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-suggest
+          composer require drupal/backstopjs --dev
+
+      - name: Setup Drupal
+        run: |
+          # Use SQLite for simplicity in visual tests
+          ./vendor/bin/drush site:install standard \
+            --db-url=sqlite://sites/default/files/.ht.sqlite \
+            --site-name="Test Site" \
+            --account-name="admin" \
+            --account-pass="admin" \
+            --yes
+
+      - name: Start PHP built-in server
+        run: |
+          cd web
+          php -S localhost:8080 &
+          sleep 5
+
+      - name: Run BackstopJS tests
+        run: |
+          cd tests/backstop
+          npm install
+          npm run reference
+          npm run test
+
+      - name: Upload visual regression artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: backstop-report
+          path: tests/backstop/backstop_data/html_report
+
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [phpunit-tests, coding-standards]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to preview environment
+        run: |
+          echo "Deploying to preview environment..."
+          # Add your deployment script here
+          # This could be deployment to Pantheon, Acquia, Platform.sh, etc.
