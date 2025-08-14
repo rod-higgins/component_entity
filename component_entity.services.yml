@@ -36,10 +36,14 @@ services:
       - '@cache_tags.invalidator'
       - '@entity_type.manager'
 
-  # Component renderer manager
   plugin.manager.component_renderer:
     class: Drupal\component_entity\Plugin\ComponentRendererManager
     parent: default_plugin_manager
+    arguments:
+      - '@container.namespaces'
+      - '@cache.discovery'
+      - '@module_handler'
+      - '@cache_tags.invalidator'
 
   component_entity.sync_subscriber:
     class: Drupal\component_entity\EventSubscriber\ComponentSyncSubscriber

@@ -4,13 +4,22 @@ namespace Drupal\component_entity\Plugin;
 
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides the Component Renderer plugin manager.
  */
 class ComponentRendererManager extends DefaultPluginManager {
+
+  /**
+   * The cache tags invalidator service.
+   *
+   * @var \Drupal\Core\Cache\CacheTagsInvalidatorInterface
+   */
+  protected $cacheTagsInvalidator;
 
   /**
    * Constructs a new ComponentRendererManager object.
@@ -22,8 +31,10 @@ class ComponentRendererManager extends DefaultPluginManager {
    *   Cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler to invoke the alter hook with.
+   * @param \Drupal\Core\Cache\CacheTagsInvalidatorInterface $cache_tags_invalidator
+   *   The cache tags invalidator service.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, ?CacheTagsInvalidatorInterface $cache_tags_invalidator = NULL) {
     parent::__construct(
       'Plugin/ComponentRenderer',
       $namespaces,
@@ -34,6 +45,19 @@ class ComponentRendererManager extends DefaultPluginManager {
 
     $this->alterInfo('component_renderer_info');
     $this->setCacheBackend($cache_backend, 'component_renderer_plugins');
+    $this->cacheTagsInvalidator = $cache_tags_invalidator;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $container->get('container.namespaces'),
+      $container->get('cache.discovery'),
+      $container->get('module_handler'),
+      $container->get('cache_tags.invalidator')
+    );
   }
 
   /**
@@ -249,7 +273,10 @@ class ComponentRendererManager extends DefaultPluginManager {
     parent::clearCachedDefinitions();
 
     // Also clear any renderer-specific caches.
-    \Drupal::cache()->invalidate('component_renderer:definitions');
+    // Fixed: Use dependency injection instead of \Drupal.
+    if ($this->cacheTagsInvalidator) {
+      $this->cacheTagsInvalidator->invalidateTags(['component_renderer:definitions']);
+    }
   }
 
 }
