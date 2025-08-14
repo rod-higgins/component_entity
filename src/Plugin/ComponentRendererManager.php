@@ -4,13 +4,22 @@ namespace Drupal\component_entity\Plugin;
 
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides the Component Renderer plugin manager.
  */
 class ComponentRendererManager extends DefaultPluginManager {
+
+  /**
+   * The cache tags invalidator service.
+   *
+   * @var \Drupal\Core\Cache\CacheTagsInvalidatorInterface
+   */
+  protected $cacheTagsInvalidator;
 
   /**
    * Constructs a new ComponentRendererManager object.
@@ -22,8 +31,10 @@ class ComponentRendererManager extends DefaultPluginManager {
    *   Cache backend instance to use.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler to invoke the alter hook with.
+   * @param \Drupal\Core\Cache\CacheTagsInvalidatorInterface $cache_tags_invalidator
+   *   The cache tags invalidator service.
    */
-  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
+  public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, CacheTagsInvalidatorInterface $cache_tags_invalidator) {
     parent::__construct(
       'Plugin/ComponentRenderer',
       $namespaces,
@@ -34,6 +45,19 @@ class ComponentRendererManager extends DefaultPluginManager {
 
     $this->alterInfo('component_renderer_info');
     $this->setCacheBackend($cache_backend, 'component_renderer_plugins');
+    $this->cacheTagsInvalidator = $cache_tags_invalidator;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $container->get('container.namespaces'),
+      $container->get('cache.discovery'),
+      $container->get('module_handler'),
+      $container->get('cache_tags.invalidator')
+    );
   }
 
   /**
@@ -82,8 +106,10 @@ class ComponentRendererManager extends DefaultPluginManager {
     $definitions = $this->getDefinitions();
 
     foreach ($definitions as $plugin_id => $definition) {
-      if (isset($definition['method']) && $definition['method'] === $method) {
-        return $this->createInstance($plugin_id);
+      if (($definition['method'] ?? '') === $method) {
+        if ($definition['enabled'] ?? TRUE) {
+          return $this->createInstance($plugin_id);
+        }
       }
     }
 
@@ -91,7 +117,7 @@ class ComponentRendererManager extends DefaultPluginManager {
   }
 
   /**
-   * Gets the default renderer based on weight.
+   * Gets the default renderer (highest weighted enabled renderer).
    *
    * @return \Drupal\component_entity\Plugin\ComponentRendererInterface|null
    *   The default renderer plugin instance, or NULL if none found.
@@ -99,14 +125,13 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function getDefaultRenderer() {
     $definitions = $this->getDefinitions();
 
-    // Sort by weight (higher weight = higher priority).
+    // Sort by weight.
     uasort($definitions, function ($a, $b) {
-      $weight_a = $a['weight'] ?? 0;
-      $weight_b = $b['weight'] ?? 0;
-      return $weight_b - $weight_a;
+      $a_weight = $a['weight'] ?? 0;
+      $b_weight = $b['weight'] ?? 0;
+      return $a_weight <=> $b_weight;
     });
 
-    // Return the first enabled renderer.
     foreach ($definitions as $plugin_id => $definition) {
       if ($definition['enabled'] ?? TRUE) {
         return $this->createInstance($plugin_id);
@@ -117,20 +142,17 @@ class ComponentRendererManager extends DefaultPluginManager {
   }
 
   /**
-   * Gets all available renderers.
-   *
-   * @param bool $only_enabled
-   *   Whether to return only enabled renderers.
+   * Gets all enabled renderers.
    *
    * @return \Drupal\component_entity\Plugin\ComponentRendererInterface[]
-   *   Array of renderer plugin instances.
+   *   Array of enabled renderer plugin instances.
    */
-  public function getAllRenderers($only_enabled = TRUE) {
+  public function getEnabledRenderers() {
     $renderers = [];
     $definitions = $this->getDefinitions();
 
     foreach ($definitions as $plugin_id => $definition) {
-      if (!$only_enabled || ($definition['enabled'] ?? TRUE)) {
+      if ($definition['enabled'] ?? TRUE) {
         $renderers[$plugin_id] = $this->createInstance($plugin_id);
       }
     }
@@ -142,7 +164,7 @@ class ComponentRendererManager extends DefaultPluginManager {
    * Gets renderers that support a specific feature.
    *
    * @param string $feature
-   *   The feature to check for (e.g., 'ssr', 'hydration', 'progressive').
+   *   The feature to check (e.g., 'supports_ssr', 'supports_hydration').
    *
    * @return \Drupal\component_entity\Plugin\ComponentRendererInterface[]
    *   Array of renderer plugin instances that support the feature.
@@ -150,7 +172,6 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function getRenderersWithFeature($feature) {
     $renderers = [];
     $definitions = $this->getDefinitions();
-
     $feature_key = 'supports_' . $feature;
 
     foreach ($definitions as $plugin_id => $definition) {
@@ -248,8 +269,8 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function clearCachedDefinitions() {
     parent::clearCachedDefinitions();
 
-    // Also clear any renderer-specific caches.
-    \Drupal::cache()->invalidate('component_renderer:definitions');
+    // Also clear any renderer-specific caches using dependency injection.
+    $this->cacheTagsInvalidator->invalidateTags(['component_renderer:definitions']);
   }
 
 }
