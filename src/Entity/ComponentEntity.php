@@ -424,7 +424,7 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
             case 'entity_reference_revisions':
               // For entity references, return the target ID(s).
               $values = [];
-              foreach ($field as $delta => $item) {
+              foreach ($field as $item) {
                 $values[] = $item->target_id;
               }
               $props[$prop_name] = $field->getFieldDefinition()
@@ -435,7 +435,7 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
             default:
               // For other fields, get the value property.
               $values = [];
-              foreach ($field as $delta => $item) {
+              foreach ($field as $item) {
                 $values[] = $item->value;
               }
               $props[$prop_name] = $field->getFieldDefinition()
