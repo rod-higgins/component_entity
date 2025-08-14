@@ -4,7 +4,19 @@ namespace Drupal\component_entity\EventSubscriber;
 
 use Drupal\component_entity\ComponentSyncService;
 use Drupal\component_entity\Event\ComponentSyncEvent;
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\Display\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Mail\MailManagerInterface;
+use Drupal\Core\Plugin\ComponentPluginManager;
+use Drupal\Core\Routing\RouteBuilderInterface;
+use Drupal\Core\Session\AccountProxyInterface;
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -33,16 +45,151 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   protected $loggerFactory;
 
   /**
+   * The state service.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
+  /**
+   * The entity field manager.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
+   */
+  protected $entityFieldManager;
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The cache tags invalidator.
+   *
+   * @var \Drupal\Core\Cache\CacheTagsInvalidatorInterface
+   */
+  protected $cacheTagsInvalidator;
+
+  /**
+   * The router builder.
+   *
+   * @var \Drupal\Core\Routing\RouteBuilderInterface
+   */
+  protected $routerBuilder;
+
+  /**
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\Display\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
+
+  /**
+   * The module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
+   * The mail manager.
+   *
+   * @var \Drupal\Core\Mail\MailManagerInterface
+   */
+  protected $mailManager;
+
+  /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $currentUser;
+
+  /**
+   * The entity type bundle info.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  protected $entityTypeBundleInfo;
+
+  /**
+   * The SDC plugin manager.
+   *
+   * @var \Drupal\Core\Plugin\ComponentPluginManager
+   */
+  protected $componentPluginManager;
+
+  /**
    * Constructs a ComponentSyncSubscriber object.
    *
    * @param \Drupal\component_entity\ComponentSyncService $sync_service
    *   The component sync service.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state service.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Cache\CacheTagsInvalidatorInterface $cache_tags_invalidator
+   *   The cache tags invalidator.
+   * @param \Drupal\Core\Routing\RouteBuilderInterface $router_builder
+   *   The router builder.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Drupal\Core\Entity\Display\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler.
+   * @param \Drupal\Core\Mail\MailManagerInterface $mail_manager
+   *   The mail manager.
+   * @param \Drupal\Core\Session\AccountProxyInterface $current_user
+   *   The current user.
+   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
+   *   The entity type bundle info.
+   * @param \Drupal\Core\Plugin\ComponentPluginManager $component_plugin_manager
+   *   The SDC plugin manager.
    */
-  public function __construct(ComponentSyncService $sync_service, LoggerChannelFactoryInterface $logger_factory) {
+  public function __construct(
+    ComponentSyncService $sync_service,
+    LoggerChannelFactoryInterface $logger_factory,
+    StateInterface $state,
+    EntityFieldManagerInterface $entity_field_manager,
+    EntityTypeManagerInterface $entity_type_manager,
+    CacheTagsInvalidatorInterface $cache_tags_invalidator,
+    RouteBuilderInterface $router_builder,
+    ConfigFactoryInterface $config_factory,
+    EntityDisplayRepositoryInterface $entity_display_repository,
+    ModuleHandlerInterface $module_handler,
+    MailManagerInterface $mail_manager,
+    AccountProxyInterface $current_user,
+    EntityTypeBundleInfoInterface $entity_type_bundle_info,
+    ComponentPluginManager $component_plugin_manager,
+  ) {
     $this->syncService = $sync_service;
     $this->loggerFactory = $logger_factory;
+    $this->state = $state;
+    $this->entityFieldManager = $entity_field_manager;
+    $this->entityTypeManager = $entity_type_manager;
+    $this->cacheTagsInvalidator = $cache_tags_invalidator;
+    $this->routerBuilder = $router_builder;
+    $this->configFactory = $config_factory;
+    $this->entityDisplayRepository = $entity_display_repository;
+    $this->moduleHandler = $module_handler;
+    $this->mailManager = $mail_manager;
+    $this->currentUser = $current_user;
+    $this->entityTypeBundleInfo = $entity_type_bundle_info;
+    $this->componentPluginManager = $component_plugin_manager;
   }
 
   /**
@@ -72,7 +219,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     $logger->info('Component sync started.');
 
     // Store sync start time in state.
-    \Drupal::state()->set('component_entity.sync_start_time', time());
+    $this->state->set('component_entity.sync_start_time', time());
 
     // Clear relevant caches.
     $this->clearCaches();
@@ -88,7 +235,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     $logger = $this->loggerFactory->get('component_entity');
 
     // Calculate sync duration.
-    $start_time = \Drupal::state()->get('component_entity.sync_start_time', time());
+    $start_time = $this->state->get('component_entity.sync_start_time', time());
     $duration = time() - $start_time;
 
     // Get statistics.
@@ -101,8 +248,8 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     ]);
 
     // Store last sync time and results.
-    \Drupal::state()->set('component_entity.last_sync', time());
-    \Drupal::state()->set('component_entity.last_sync_results', $event->getResults());
+    $this->state->set('component_entity.last_sync', time());
+    $this->state->set('component_entity.last_sync_results', $event->getResults());
 
     // Clear caches if components were created or updated.
     if ($stats['created'] > 0 || $stats['updated'] > 0) {
@@ -110,7 +257,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
 
       // Clear router cache if new bundles were created.
       if ($stats['created'] > 0) {
-        \Drupal::service('router.builder')->rebuild();
+        $this->routerBuilder->rebuild();
       }
     }
 
@@ -144,7 +291,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
       'component_type:' . $bundle,
       'component_list',
     ];
-    \Drupal::service('cache_tags.invalidator')->invalidateTags($cache_tags);
+    $this->cacheTagsInvalidator->invalidateTags($cache_tags);
 
     // If this is a new component type, ensure Field UI routes are available.
     if ($is_new) {
@@ -170,7 +317,8 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     }
 
     // Check if we should stop the sync.
-    $max_errors = \Drupal::config('component_entity.settings')->get('sync_max_errors') ?? 10;
+    $config = $this->configFactory->get('component_entity.settings');
+    $max_errors = $config->get('sync_max_errors') ?? 10;
     if (count($errors) >= $max_errors) {
       $event->stopSync();
       $logger->error('Stopping sync due to too many errors (@count errors)', [
@@ -245,7 +393,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     $this->updateDisplays($bundle);
 
     // Clear field-related caches.
-    \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
+    $this->entityFieldManager->clearCachedFieldDefinitions();
   }
 
   /**
@@ -253,13 +401,13 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   protected function clearCaches() {
     // Clear entity type definitions.
-    \Drupal::entityTypeManager()->clearCachedDefinitions();
+    $this->entityTypeManager->clearCachedDefinitions();
 
     // Clear field definitions.
-    \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
+    $this->entityFieldManager->clearCachedFieldDefinitions();
 
     // Clear plugin caches.
-    \Drupal::service('plugin.manager.sdc')->clearCachedDefinitions();
+    $this->componentPluginManager->clearCachedDefinitions();
 
     // Invalidate component-related cache tags.
     $cache_tags = [
@@ -267,7 +415,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
       'component_type_list',
       'config:field_storage_config_list',
     ];
-    \Drupal::service('cache_tags.invalidator')->invalidateTags($cache_tags);
+    $this->cacheTagsInvalidator->invalidateTags($cache_tags);
   }
 
   /**
@@ -289,7 +437,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     }
 
     // Send email notification if configured.
-    $config = \Drupal::config('component_entity.settings');
+    $config = $this->configFactory->get('component_entity.settings');
     if ($config->get('sync_error_notification')) {
       $this->sendErrorNotification($errors);
     }
@@ -302,17 +450,17 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    *   Array of errors.
    */
   protected function sendErrorNotification(array $errors) {
-    $mail_manager = \Drupal::service('plugin.manager.mail');
     $module = 'component_entity';
     $key = 'sync_errors';
-    $to = \Drupal::config('system.site')->get('mail');
+    $site_config = $this->configFactory->get('system.site');
+    $to = $site_config->get('mail');
     $params = [
       'errors' => $errors,
       'count' => count($errors),
     ];
-    $langcode = \Drupal::currentUser()->getPreferredLangcode();
+    $langcode = $this->currentUser->getPreferredLangcode();
 
-    $mail_manager->mail($module, $key, $to, $langcode, $params);
+    $this->mailManager->mail($module, $key, $to, $langcode, $params);
   }
 
   /**
@@ -360,10 +508,10 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   protected function hasNamingConflict($bundle) {
     // Check if another entity type uses this bundle.
-    $entity_types = \Drupal::entityTypeManager()->getDefinitions();
+    $entity_types = $this->entityTypeManager->getDefinitions();
     foreach ($entity_types as $entity_type) {
       if ($entity_type->getBundleEntityType()) {
-        $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo($entity_type->id());
+        $bundles = $this->entityTypeBundleInfo->getBundleInfo($entity_type->id());
         if (isset($bundles[$bundle])) {
           return TRUE;
         }
@@ -381,8 +529,8 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   protected function ensureFieldUiRoutes($bundle) {
     // Trigger route rebuild if Field UI is enabled.
-    if (\Drupal::moduleHandler()->moduleExists('field_ui')) {
-      \Drupal::service('router.builder')->setRebuildNeeded();
+    if ($this->moduleHandler->moduleExists('field_ui')) {
+      $this->routerBuilder->setRebuildNeeded();
     }
   }
 
@@ -395,13 +543,11 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   protected function createDefaultViewModes($bundle) {
     // This would typically create view mode configurations.
     // For now, just ensure default displays exist.
-    $display_repository = \Drupal::service('entity_display.repository');
-
     // Ensure default form display exists.
-    $display_repository->getFormDisplay('component', $bundle, 'default');
+    $this->entityDisplayRepository->getFormDisplay('component', $bundle, 'default');
 
     // Ensure default view display exists.
-    $display_repository->getViewDisplay('component', $bundle, 'default');
+    $this->entityDisplayRepository->getViewDisplay('component', $bundle, 'default');
   }
 
   /**
@@ -427,8 +573,8 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   protected function backupFieldConfiguration($bundle) {
     // Store current field configuration in state for potential rollback.
-    $fields = \Drupal::service('entity_field.manager')->getFieldDefinitions('component', $bundle);
-    \Drupal::state()->set('component_entity.field_backup.' . $bundle, $fields);
+    $fields = $this->entityFieldManager->getFieldDefinitions('component', $bundle);
+    $this->state->set('component_entity.field_backup.' . $bundle, $fields);
   }
 
   /**
@@ -439,14 +585,12 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   protected function updateDisplays($bundle) {
     // Ensure displays are properly configured.
-    $display_repository = \Drupal::service('entity_display.repository');
-
     // Update form display.
-    $form_display = $display_repository->getFormDisplay('component', $bundle, 'default');
+    $form_display = $this->entityDisplayRepository->getFormDisplay('component', $bundle, 'default');
     $form_display->save();
 
     // Update view display.
-    $view_display = $display_repository->getViewDisplay('component', $bundle, 'default');
+    $view_display = $this->entityDisplayRepository->getViewDisplay('component', $bundle, 'default');
     $view_display->save();
   }
 

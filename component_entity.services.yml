@@ -40,12 +40,23 @@ services:
     class: Drupal\component_entity\Plugin\ComponentRendererManager
     parent: default_plugin_manager
 
-  # Event subscribers
   component_entity.sync_subscriber:
     class: Drupal\component_entity\EventSubscriber\ComponentSyncSubscriber
     arguments:
       - '@component_entity.sync'
       - '@logger.factory'
+      - '@state'
+      - '@entity_field.manager'
+      - '@entity_type.manager'
+      - '@cache_tags.invalidator'
+      - '@router.builder'
+      - '@config.factory'
+      - '@entity_display.repository'
+      - '@module_handler'
+      - '@plugin.manager.mail'
+      - '@current_user'
+      - '@entity_type.bundle.info'
+      - '@plugin.manager.sdc'
     tags:
       - { name: event_subscriber }
 
