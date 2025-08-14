@@ -176,7 +176,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
 
     // If using SDC component, render it.
     if ($template['type'] === 'sdc') {
-      $build = $this->renderSDCComponent($entity, $template['sdc_id'], $variables);
+      $build = $this->renderSdcComponent($entity, $template['sdc_id'], $variables);
     }
     // If using custom template file.
     elseif ($template['type'] === 'custom') {
@@ -336,7 +336,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
    * @return array
    *   The render array.
    */
-  protected function renderSDCComponent(ComponentEntityInterface $entity, $sdc_id, array $variables) {
+  protected function renderSdcComponent(ComponentEntityInterface $entity, $sdc_id, array $variables) {
     // Extract props and slots from variables.
     $props = $this->extractPropsFromVariables($variables);
     $slots = $this->extractSlotsFromVariables($variables);
@@ -632,7 +632,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
   /**
    * {@inheritdoc}
    */
-  public function supportsSSR() {
+  public function supportsSsr() {
     return TRUE;
   }
 

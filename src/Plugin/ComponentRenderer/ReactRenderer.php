@@ -180,7 +180,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
     ];
 
     // Add SSR content if enabled.
-    if ($ssr_enabled && $this->supportsSSR()) {
+    if ($ssr_enabled && $this->supportsSsr()) {
       $build['#ssr_content'] = $this->renderServerSide($entity, $props, $slots);
     }
 
@@ -199,7 +199,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
   /**
    * {@inheritdoc}
    */
-  public function supportsSSR() {
+  public function supportsSsr() {
     // Check if Node.js is available for SSR.
     return $this->getPluginDefinition()['supports_ssr'] && $this->isNodeAvailable();
   }

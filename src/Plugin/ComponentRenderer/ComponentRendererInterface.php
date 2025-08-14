@@ -34,7 +34,7 @@ interface ComponentRendererInterface extends PluginInspectionInterface {
    * @return bool
    *   TRUE if SSR is supported, FALSE otherwise.
    */
-  public function supportsSSR();
+  public function supportsSsr();
 
   /**
    * Checks if this renderer supports client-side hydration.

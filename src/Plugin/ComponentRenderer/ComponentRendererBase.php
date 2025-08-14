@@ -19,7 +19,7 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
   /**
    * {@inheritdoc}
    */
-  public function supportsSSR() {
+  public function supportsSsr() {
     return $this->getPluginDefinition()['supports_ssr'] ?? FALSE;
   }
 

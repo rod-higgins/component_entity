@@ -131,7 +131,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
 
     if ($sdc_id && $this->componentManager->hasDefinition($sdc_id)) {
       // Use SDC component rendering.
-      $build = $this->renderSDCComponent($entity, $sdc_id, $context);
+      $build = $this->renderSdcComponent($entity, $sdc_id, $context);
     }
     else {
       // Fall back to standard entity rendering.
@@ -160,7 +160,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
    * @return array
    *   The render array.
    */
-  protected function renderSDCComponent(ComponentEntityInterface $entity, $sdc_id, array $context) {
+  protected function renderSdcComponent(ComponentEntityInterface $entity, $sdc_id, array $context) {
     // Get component props and slots.
     $props = $this->extractComponentProps($entity, $context);
     $slots = $this->extractComponentSlots($entity, $context);
@@ -507,7 +507,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
   /**
    * {@inheritdoc}
    */
-  public function supportsSSR() {
+  public function supportsSsr() {
     return TRUE;
   }
 
