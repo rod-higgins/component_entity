@@ -3,6 +3,7 @@
 namespace Drupal\component_entity\Event;
 
 use Drupal\Component\EventDispatcher\Event;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Event fired during component synchronization.
@@ -11,6 +12,8 @@ use Drupal\Component\EventDispatcher\Event;
  * operations and potentially modify the sync process.
  */
 class ComponentSyncEvent extends Event {
+
+  use StringTranslationTrait;
 
   /**
    * Event fired when a single component is synced.
@@ -137,6 +140,21 @@ class ComponentSyncEvent extends Event {
   public function setData(array $data) {
     $this->data = $data;
     return $this;
+  }
+
+  /**
+   * Gets a specific data value.
+   *
+   * @param string $key
+   *   The data key.
+   * @param mixed $default
+   *   Default value if key doesn't exist.
+   *
+   * @return mixed
+   *   The data value.
+   */
+  public function get($key, $default = NULL) {
+    return $this->data[$key] ?? $default;
   }
 
   /**
@@ -352,19 +370,19 @@ class ComponentSyncEvent extends Event {
 
     $parts = [];
     if ($stats['created'] > 0) {
-      $parts[] = t('@count created', ['@count' => $stats['created']]);
+      $parts[] = $this->t('@count created', ['@count' => $stats['created']]);
     }
     if ($stats['updated'] > 0) {
-      $parts[] = t('@count updated', ['@count' => $stats['updated']]);
+      $parts[] = $this->t('@count updated', ['@count' => $stats['updated']]);
     }
     if ($stats['skipped'] > 0) {
-      $parts[] = t('@count skipped', ['@count' => $stats['skipped']]);
+      $parts[] = $this->t('@count skipped', ['@count' => $stats['skipped']]);
     }
     if ($stats['errors'] > 0) {
-      $parts[] = t('@count errors', ['@count' => $stats['errors']]);
+      $parts[] = $this->t('@count errors', ['@count' => $stats['errors']]);
     }
 
-    return implode(', ', $parts) ?: t('No components processed');
+    return implode(', ', $parts) ?: $this->t('No components processed');
   }
 
 }
