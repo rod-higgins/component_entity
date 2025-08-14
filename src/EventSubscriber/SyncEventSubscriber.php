@@ -8,6 +8,11 @@ use Drupal\component_entity\Event\BiDirectionalSyncEvent;
 use Drupal\component_entity\Event\FileWriteEvent;
 use Drupal\component_entity\Event\ComponentSyncEvent;
 use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Plugin\CachedDiscoveryClearerInterface;
+use Drupal\Core\Extension\ThemeHandlerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -15,22 +20,80 @@ use Psr\Log\LoggerInterface;
  */
 class SyncEventSubscriber implements EventSubscriberInterface {
 
+  use StringTranslationTrait;
+
   /**
+   * The messenger service.
+   *
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
   protected $messenger;
 
   /**
+   * The logger service.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
   /**
-   * Constructor.
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  public function __construct(MessengerInterface $messenger, LoggerInterface $logger) {
+  protected $configFactory;
+
+  /**
+   * The render cache.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected $renderCache;
+
+  /**
+   * The plugin manager for SDC.
+   *
+   * @var \Drupal\Core\Plugin\CachedDiscoveryClearerInterface
+   */
+  protected $sdcPluginManager;
+
+  /**
+   * The theme handler.
+   *
+   * @var \Drupal\Core\Extension\ThemeHandlerInterface
+   */
+  protected $themeHandler;
+
+  /**
+   * Constructor.
+   *
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Drupal\Core\Cache\CacheBackendInterface $render_cache
+   *   The render cache.
+   * @param \Drupal\Core\Plugin\CachedDiscoveryClearerInterface $sdc_plugin_manager
+   *   The SDC plugin manager.
+   * @param \Drupal\Core\Extension\ThemeHandlerInterface $theme_handler
+   *   The theme handler.
+   */
+  public function __construct(
+    MessengerInterface $messenger,
+    LoggerInterface $logger,
+    ConfigFactoryInterface $config_factory,
+    CacheBackendInterface $render_cache,
+    CachedDiscoveryClearerInterface $sdc_plugin_manager,
+    ThemeHandlerInterface $theme_handler,
+  ) {
     $this->messenger = $messenger;
     $this->logger = $logger;
+    $this->configFactory = $config_factory;
+    $this->renderCache = $render_cache;
+    $this->sdcPluginManager = $sdc_plugin_manager;
+    $this->themeHandler = $theme_handler;
   }
 
   /**
@@ -63,14 +126,14 @@ class SyncEventSubscriber implements EventSubscriberInterface {
     // Check if sync should be cancelled (example validation)
     if ($this->shouldCancelSync($component_type)) {
       $event->cancel();
-      $this->messenger->addError(t('Sync cancelled for @type due to validation errors.', [
+      $this->messenger->addError($this->t('Sync cancelled for @type due to validation errors.', [
         '@type' => $component_type->label(),
       ]));
       return;
     }
 
     // Notify user of sync start.
-    $this->messenger->addStatus(t('Starting @operation sync for @type...', [
+    $this->messenger->addStatus($this->t('Starting @operation sync for @type...', [
       '@operation' => $operation,
       '@type' => $component_type->label(),
     ]));
@@ -93,7 +156,7 @@ class SyncEventSubscriber implements EventSubscriberInterface {
 
     // Process results and notify user.
     if ($results['success']) {
-      $this->messenger->addStatus(t('Successfully synced @type component.', [
+      $this->messenger->addStatus($this->t('Successfully synced @type component.', [
         '@type' => $component_type->label(),
       ]));
 
@@ -101,12 +164,12 @@ class SyncEventSubscriber implements EventSubscriberInterface {
       if (isset($results['operations'])) {
         foreach ($results['operations'] as $op => $result) {
           if ($result['success']) {
-            $this->messenger->addStatus(t('✓ @op completed successfully.', [
+            $this->messenger->addStatus($this->t('✓ @op completed successfully.', [
               '@op' => ucfirst($op),
             ]));
           }
           else {
-            $this->messenger->addWarning(t('⚠ @op failed: @message', [
+            $this->messenger->addWarning($this->t('⚠ @op failed: @message', [
               '@op' => ucfirst($op),
               '@message' => $result['message'],
             ]));
@@ -115,13 +178,13 @@ class SyncEventSubscriber implements EventSubscriberInterface {
       }
     }
     else {
-      $this->messenger->addError(t('Failed to sync @type component.', [
+      $this->messenger->addError($this->t('Failed to sync @type component.', [
         '@type' => $component_type->label(),
       ]));
     }
 
     // Clear caches if configured.
-    $config = \Drupal::config('component_entity.settings');
+    $config = $this->configFactory->get('component_entity.settings');
     if ($config->get('cache.clear_on_sync')) {
       $this->clearRelevantCaches($component_type);
     }
@@ -177,15 +240,15 @@ class SyncEventSubscriber implements EventSubscriberInterface {
    */
   protected function clearRelevantCaches($component_type) {
     // Clear render cache.
-    \Drupal::service('cache.render')->invalidateAll();
+    $this->renderCache->invalidateAll();
 
     // Clear discovery caches.
-    \Drupal::service('plugin.manager.sdc')->clearCachedDefinitions();
+    $this->sdcPluginManager->clearCachedDefinitions();
 
     // Clear theme registry.
-    \Drupal::service('theme.registry')->reset();
+    $this->themeHandler->refreshInfo();
 
-    $this->messenger->addStatus(t('Caches cleared after sync.'));
+    $this->messenger->addStatus($this->t('Caches cleared after sync.'));
   }
 
 }
@@ -195,16 +258,33 @@ class SyncEventSubscriber implements EventSubscriberInterface {
  */
 class FileEventSubscriber implements EventSubscriberInterface {
 
+  use StringTranslationTrait;
+
   /**
+   * The logger service.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
   /**
-   * Constructor.
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  public function __construct(LoggerInterface $logger) {
+  protected $configFactory;
+
+  /**
+   * Constructor.
+   *
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   */
+  public function __construct(LoggerInterface $logger, ConfigFactoryInterface $config_factory) {
     $this->logger = $logger;
+    $this->configFactory = $config_factory;
   }
 
   /**
@@ -228,7 +308,7 @@ class FileEventSubscriber implements EventSubscriberInterface {
     $options = $event->getOptions();
 
     // Log file operation if configured.
-    $config = \Drupal::config('component_entity.settings');
+    $config = $this->configFactory->get('component_entity.settings');
     if ($config->get('logging.log_file_operations')) {
       $this->logger->info('File written: @path', [
         '@path' => $file_path,
@@ -353,7 +433,7 @@ class FileEventSubscriber implements EventSubscriberInterface {
    */
   protected function validateYamlFile($file_path, $content) {
     try {
-      $parsed = Yaml::parse($content);
+      Yaml::parse($content);
       $this->logger->info('YAML file validated: @path', [
         '@path' => $file_path,
       ]);
