@@ -133,7 +133,8 @@ class ComponentAccessControlHandler extends EntityAccessControlHandler {
     // Special handling for render_method field.
     if ($field_definition->getName() === 'render_method') {
       if ($operation === 'edit') {
-        // Only users with React configuration permission can change render method.
+        // Only users with React configuration
+        // permission can change render method.
         return AccessResult::allowedIfHasPermission($account, 'configure react rendering');
       }
     }
@@ -141,7 +142,8 @@ class ComponentAccessControlHandler extends EntityAccessControlHandler {
     // Special handling for react_config field.
     if ($field_definition->getName() === 'react_config') {
       if ($operation === 'edit') {
-        // Only users with React configuration permission can edit React config.
+        // Only users with React configuration
+        // permission can edit React config.
         return AccessResult::allowedIfHasPermission($account, 'configure react rendering');
       }
       if ($operation === 'view') {
