@@ -8,6 +8,9 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Plugin\Component\ComponentPluginManager;
+use Drupal\component_entity\ComponentSyncService;
+use Drupal\component_entity\ComponentCacheManager;
+use Drupal\Core\Extension\ModuleExtensionList;
 
 /**
  * Form handler for Component type add and edit forms.
@@ -36,6 +39,27 @@ class ComponentTypeForm extends EntityForm {
   protected $componentManager;
 
   /**
+   * The component sync service.
+   *
+   * @var \Drupal\component_entity\ComponentSyncService
+   */
+  protected $syncService;
+
+  /**
+   * The cache manager service.
+   *
+   * @var \Drupal\component_entity\ComponentCacheManager
+   */
+  protected $cacheManager;
+
+  /**
+   * The module extension list.
+   *
+   * @var \Drupal\Core\Extension\ModuleExtensionList
+   */
+  protected $moduleExtensionList;
+
+  /**
    * Constructs a ComponentTypeForm object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
@@ -44,15 +68,27 @@ class ComponentTypeForm extends EntityForm {
    *   The messenger service.
    * @param \Drupal\Core\Plugin\Component\ComponentPluginManager $component_manager
    *   The SDC component plugin manager.
+   * @param \Drupal\component_entity\ComponentSyncService $sync_service
+   *   The component sync service.
+   * @param \Drupal\component_entity\ComponentCacheManager $cache_manager
+   *   The cache manager service.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $module_extension_list
+   *   The module extension list.
    */
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
     MessengerInterface $messenger,
     ComponentPluginManager $component_manager,
+    ComponentSyncService $sync_service,
+    ComponentCacheManager $cache_manager,
+    ModuleExtensionList $module_extension_list,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $this->componentManager = $component_manager;
+    $this->syncService = $sync_service;
+    $this->cacheManager = $cache_manager;
+    $this->moduleExtensionList = $module_extension_list;
   }
 
   /**
@@ -62,7 +98,10 @@ class ComponentTypeForm extends EntityForm {
     return new static(
       $container->get('entity_type.manager'),
       $container->get('messenger'),
-      $container->get('plugin.manager.sdc')
+      $container->get('plugin.manager.sdc'),
+      $container->get('component_entity.sync'),
+      $container->get('component_entity.cache_manager'),
+      $container->get('extension.list.module')
     );
   }
 
@@ -99,57 +138,9 @@ class ComponentTypeForm extends EntityForm {
     $form['description'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Description'),
-      '#default_value' => $component_type->get('description') ?? '',
-      '#description' => $this->t('Describe this component type. This text will be shown on the component add page.'),
-      '#rows' => 3,
+      '#default_value' => $component_type->get('description'),
+      '#description' => $this->t('A brief description of this component type.'),
     ];
-
-    // SDC Component mapping.
-    $form['sdc_mapping'] = [
-      '#type' => 'details',
-      '#title' => $this->t('SDC Component Mapping'),
-      '#open' => TRUE,
-    ];
-
-    // Get available SDC components.
-    $sdc_options = $this->getAvailableSdcComponents();
-
-    if (empty($sdc_options)) {
-      $form['sdc_mapping']['no_components'] = [
-        '#markup' => '<p>' . $this->t('No SDC components found. Please create SDC components in your module or theme.') . '</p>',
-      ];
-    }
-    else {
-      $form['sdc_mapping']['sdc_id'] = [
-        '#type' => 'select',
-        '#title' => $this->t('SDC Component'),
-        '#options' => $sdc_options,
-        '#default_value' => $component_type->get('sdc_id') ?? '',
-        '#empty_option' => $this->t('- Select an SDC component -'),
-        '#description' => $this->t('Select the SDC component that this type will use for rendering.'),
-        '#required' => TRUE,
-        '#ajax' => [
-          'callback' => '::updateComponentInfo',
-          'wrapper' => 'component-info-wrapper',
-          'progress' => [
-            'type' => 'throbber',
-            'message' => $this->t('Loading component information...'),
-          ],
-        ],
-      ];
-
-      // Component information display.
-      $form['sdc_mapping']['component_info'] = [
-        '#type' => 'container',
-        '#attributes' => ['id' => 'component-info-wrapper'],
-      ];
-
-      // Load component info if SDC ID is set.
-      $sdc_id = $form_state->getValue('sdc_id') ?? $component_type->get('sdc_id');
-      if ($sdc_id && isset($sdc_options[$sdc_id])) {
-        $form['sdc_mapping']['component_info'] = $this->buildComponentInfo($sdc_id);
-      }
-    }
 
     // Rendering configuration.
     $form['rendering'] = [
@@ -158,72 +149,73 @@ class ComponentTypeForm extends EntityForm {
       '#open' => TRUE,
     ];
 
-    $rendering_config = $component_type->get('rendering') ?? [
-      'twig_enabled' => TRUE,
-      'react_enabled' => FALSE,
-      'default_method' => 'twig',
-    ];
-
     $form['rendering']['twig_enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Twig rendering'),
-      '#default_value' => $rendering_config['twig_enabled'] ?? TRUE,
-      '#description' => $this->t('Allow this component to be rendered using Twig templates (server-side).'),
+      '#default_value' => $component_type->get('rendering')['twig_enabled'] ?? TRUE,
+      '#description' => $this->t('Allow this component to be rendered using Twig templates.'),
     ];
 
     $form['rendering']['react_enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable React rendering'),
-      '#default_value' => $rendering_config['react_enabled'] ?? FALSE,
-      '#description' => $this->t('Allow this component to be rendered using React (client-side).'),
-      '#states' => [
-        'disabled' => [
-          ':input[name="twig_enabled"]' => ['checked' => FALSE],
-        ],
-      ],
+      '#default_value' => $component_type->get('rendering')['react_enabled'] ?? FALSE,
+      '#description' => $this->t('Allow this component to be rendered using React.'),
     ];
-
-    // Check if React component exists.
-    if ($sdc_id) {
-      $has_react = $this->hasReactComponent($sdc_id);
-      if (!$has_react) {
-        $form['rendering']['react_enabled']['#disabled'] = TRUE;
-        $form['rendering']['react_enabled']['#description'] .= ' <strong>' .
-          $this->t('No React component found. Create a .jsx or .tsx file for this component to enable React rendering.') .
-          '</strong>';
-      }
-    }
 
     $form['rendering']['default_method'] = [
       '#type' => 'radios',
       '#title' => $this->t('Default render method'),
       '#options' => [
-        'twig' => $this->t('Twig (Server-side)'),
-        'react' => $this->t('React (Client-side)'),
+        'twig' => $this->t('Twig'),
+        'react' => $this->t('React'),
       ],
-      '#default_value' => $rendering_config['default_method'] ?? 'twig',
-      '#description' => $this->t('The default rendering method for new components of this type.'),
-      '#states' => [
-        'visible' => [
-          [':input[name="twig_enabled"]' => ['checked' => TRUE]],
-          'and',
-          [':input[name="react_enabled"]' => ['checked' => TRUE]],
-        ],
-      ],
+      '#default_value' => $component_type->get('rendering')['default_method'] ?? 'twig',
+      '#description' => $this->t('The default rendering method for this component type.'),
     ];
 
-    // React-specific configuration.
     $form['rendering']['react_library'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('React component library'),
-      '#default_value' => $rendering_config['react_library'] ?? '',
-      '#description' => $this->t('The Drupal library that contains the React component (e.g., "mymodule/components.hero").'),
+      '#title' => $this->t('React library'),
+      '#default_value' => $component_type->get('rendering')['react_library'] ?? '',
+      '#description' => $this->t('The Drupal library that contains the React component (e.g., "mymodule/my-component").'),
       '#states' => [
         'visible' => [
           ':input[name="react_enabled"]' => ['checked' => TRUE],
         ],
       ],
     ];
+
+    // SDC Mapping.
+    $form['sdc_mapping'] = [
+      '#type' => 'details',
+      '#title' => $this->t('SDC Component Mapping'),
+      '#open' => TRUE,
+    ];
+
+    $form['sdc_mapping']['sdc_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('SDC Component'),
+      '#options' => $this->getAllAvailableComponents(),
+      '#default_value' => $component_type->get('sdc_id'),
+      '#empty_option' => $this->t('- Select SDC Component -'),
+      '#description' => $this->t('Select the SDC component this type should sync with.'),
+      '#ajax' => [
+        'callback' => '::updateComponentInfo',
+        'wrapper' => 'component-info-wrapper',
+      ],
+    ];
+
+    // Component info display.
+    $form['sdc_mapping']['component_info'] = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'component-info-wrapper'],
+    ];
+
+    $sdc_id = $form_state->getValue('sdc_id') ?? $component_type->get('sdc_id');
+    if ($sdc_id) {
+      $form['sdc_mapping']['component_info']['details'] = $this->buildComponentInfo($sdc_id);
+    }
 
     // Advanced settings.
     $form['advanced'] = [
@@ -235,28 +227,33 @@ class ComponentTypeForm extends EntityForm {
     $form['advanced']['revision'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Create new revision'),
-      '#default_value' => $component_type->get('revision') ?? TRUE,
-      '#description' => $this->t('Automatically create a new revision when components of this type are saved.'),
+      '#default_value' => $component_type->get('revision') ?? FALSE,
+      '#description' => $this->t('Automatically create a new revision when components of this type are updated.'),
     ];
 
     $form['advanced']['preview_mode'] = [
       '#type' => 'select',
       '#title' => $this->t('Preview mode'),
       '#options' => [
-        'default' => $this->t('Default'),
-        'disabled' => $this->t('Disabled'),
-        'optional' => $this->t('Optional'),
-        'required' => $this->t('Required'),
+        'none' => $this->t('No preview'),
+        'inline' => $this->t('Inline preview'),
+        'modal' => $this->t('Modal preview'),
+        'sidebar' => $this->t('Sidebar preview'),
       ],
-      '#default_value' => $component_type->get('preview_mode') ?? 'optional',
-      '#description' => $this->t('Configure preview settings for this component type.'),
+      '#default_value' => $component_type->get('preview_mode') ?? 'inline',
+      '#description' => $this->t('How to display previews of this component type.'),
     ];
 
     $form['advanced']['workflow'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable workflow'),
-      '#default_value' => $component_type->get('workflow') ?? FALSE,
-      '#description' => $this->t('Enable workflow states (draft, published, archived) for components of this type.'),
+      '#type' => 'select',
+      '#title' => $this->t('Workflow'),
+      '#options' => [
+        'none' => $this->t('No workflow'),
+        'simple' => $this->t('Simple (Draft/Published)'),
+        'editorial' => $this->t('Editorial workflow'),
+      ],
+      '#default_value' => $component_type->get('workflow') ?? 'none',
+      '#description' => $this->t('The workflow to use for components of this type.'),
     ];
 
     // Validation settings.
@@ -270,7 +267,7 @@ class ComponentTypeForm extends EntityForm {
       '#type' => 'checkbox',
       '#title' => $this->t('Strict schema validation'),
       '#default_value' => $component_type->get('strict_schema') ?? TRUE,
-      '#description' => $this->t('Validate component data against the SDC schema definition.'),
+      '#description' => $this->t('Enforce strict validation against the SDC component schema.'),
     ];
 
     $form['validation']['required_fields'] = [
@@ -389,8 +386,7 @@ class ComponentTypeForm extends EntityForm {
         ]));
 
         // Clear cache for this component type.
-        $cache_manager = \Drupal::service('component_entity.cache_manager');
-        $cache_manager->invalidateBundleCache($component_type->id());
+        $this->cacheManager->invalidateBundleCache($component_type->id());
     }
 
     // Redirect to the collection page.
@@ -414,140 +410,123 @@ class ComponentTypeForm extends EntityForm {
    *   Render array with component information.
    */
   protected function buildComponentInfo($sdc_id) {
-    $build = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'component-info-wrapper'],
-    ];
+    $info = [];
 
     try {
       $component = $this->componentManager->find($sdc_id);
-
       if ($component) {
         $metadata = $component->metadata;
 
-        $build['info'] = [
-          '#type' => 'details',
-          '#title' => $this->t('Component Details'),
-          '#open' => TRUE,
-        ];
-
-        $build['info']['name'] = [
+        $info['name'] = [
           '#type' => 'item',
-          '#title' => $this->t('Name'),
+          '#title' => $this->t('Component Name'),
           '#markup' => $metadata->name ?? $sdc_id,
         ];
 
         if (!empty($metadata->description)) {
-          $build['info']['description'] = [
+          $info['description'] = [
             '#type' => 'item',
             '#title' => $this->t('Description'),
             '#markup' => $metadata->description,
           ];
         }
 
-        // Show props.
+        // Display props.
         if (!empty($metadata->props)) {
           $props_list = [];
-          foreach ($metadata->props as $prop_name => $prop_schema) {
-            $type = $prop_schema->type ?? 'string';
-            $required = !empty($prop_schema->required) ? ' (required)' : '';
-            $props_list[] = $prop_name . ' [' . $type . ']' . $required;
+          foreach ($metadata->props as $prop_name => $prop_definition) {
+            $required = !empty($prop_definition['required']) ? ' (required)' : '';
+            $props_list[] = $prop_name . $required;
           }
-
-          $build['info']['props'] = [
-            '#theme' => 'item_list',
+          $info['props'] = [
+            '#type' => 'item',
             '#title' => $this->t('Props'),
-            '#items' => $props_list,
+            '#markup' => implode(', ', $props_list),
           ];
         }
 
-        // Show slots.
+        // Display slots.
         if (!empty($metadata->slots)) {
-          $slots_list = [];
-          foreach ($metadata->slots as $slot_name => $slot_schema) {
-            $title = $slot_schema->title ?? $slot_name;
-            $slots_list[] = $title . ' (' . $slot_name . ')';
-          }
-
-          $build['info']['slots'] = [
-            '#theme' => 'item_list',
+          $info['slots'] = [
+            '#type' => 'item',
             '#title' => $this->t('Slots'),
-            '#items' => $slots_list,
+            '#markup' => implode(', ', array_keys($metadata->slots)),
           ];
         }
 
-        // Check for React component.
+        // Check if React component exists.
         if ($this->hasReactComponent($sdc_id)) {
-          $build['info']['react'] = [
+          $info['react_available'] = [
             '#type' => 'item',
             '#title' => $this->t('React Component'),
-            '#markup' => '<span style="color: green;">✓ ' . $this->t('React component found') . '</span>',
-          ];
-        }
-        else {
-          $build['info']['react'] = [
-            '#type' => 'item',
-            '#title' => $this->t('React Component'),
-            '#markup' => '<span style="color: gray;">✗ ' . $this->t('No React component found') . '</span>',
+            '#markup' => '<span class="color-success">' . $this->t('Available') . '</span>',
           ];
         }
       }
     }
     catch (\Exception $e) {
-      $build['error'] = [
-        '#markup' => '<p style="color: red;">' . $this->t('Error loading component: @message', [
+      $info['error'] = [
+        '#type' => 'item',
+        '#markup' => '<div class="messages messages--error">' . $this->t('Error loading component: @message', [
           '@message' => $e->getMessage(),
-        ]) . '</p>',
+        ]) . '</div>',
       ];
     }
 
-    return $build;
+    return $info;
   }
 
   /**
-   * Gets available SDC components.
+   * Gets all available SDC components.
    *
    * @return array
-   *   Array of SDC component options.
+   *   Array of component options keyed by ID.
    */
-  protected function getAvailableSdcComponents() {
+  protected function getAllAvailableComponents() {
     $options = [];
 
     try {
       $components = $this->componentManager->getAllComponents();
-
-      foreach ($components as $component_id => $component) {
-        $label = $component->metadata->name ?? $component_id;
-        $options[$component_id] = $label . ' (' . $component_id . ')';
+      foreach ($components as $id => $component) {
+        $name = $component->metadata->name ?? $id;
+        $provider = $component->getPluginDefinition()['provider'] ?? 'unknown';
+        $options[$provider][$id] = $name;
       }
     }
     catch (\Exception $e) {
-      $this->logger('component_entity')->error('Error loading SDC components: @message', [
+      $this->messenger->addError($this->t('Error loading components: @message', [
         '@message' => $e->getMessage(),
-      ]);
+      ]));
     }
 
     return $options;
   }
 
   /**
-   * Checks if a React component exists for the SDC component.
+   * Checks if a React component exists for the given SDC ID.
    *
    * @param string $sdc_id
    *   The SDC component ID.
    *
    * @return bool
-   *   TRUE if React component exists.
+   *   TRUE if React component exists, FALSE otherwise.
    */
   protected function hasReactComponent($sdc_id) {
-    // Extract component name from ID.
+    // Parse the SDC ID to get module and component name.
     $parts = explode(':', $sdc_id);
-    $component_name = end($parts);
+    if (count($parts) !== 2) {
+      return FALSE;
+    }
+
+    [$module, $component_name] = $parts;
 
     // Check common locations for React components.
-    $module_path = \Drupal::service('extension.list.module')->getPath('component_entity');
+    $module_path = $this->moduleExtensionList->getPath($module);
 
     $possible_files = [
+      $module_path . '/js/components/' . $component_name . '.js',
+      $module_path . '/js/components/' . $component_name . '.jsx',
+      $module_path . '/components/' . $component_name . '/' . $component_name . '.js',
       $module_path . '/components/' . $component_name . '/' . $component_name . '.jsx',
       $module_path . '/components/' . $component_name . '/' . $component_name . '.tsx',
       $module_path . '/dist/js/' . $component_name . '.component.js',
@@ -570,13 +549,12 @@ class ComponentTypeForm extends EntityForm {
    */
   protected function triggerFieldSync($component_type) {
     try {
-      $sync_service = \Drupal::service('component_entity.sync');
       $sdc_id = $component_type->get('sdc_id');
 
       if ($sdc_id) {
         $component = $this->componentManager->find($sdc_id);
         if ($component) {
-          $sync_service->syncComponent($sdc_id, $component, TRUE);
+          $this->syncService->syncComponent($sdc_id, $component, TRUE);
           $this->messenger->addMessage($this->t('Fields have been synchronized from the SDC component definition.'));
         }
       }
