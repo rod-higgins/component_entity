@@ -133,7 +133,6 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
   public function render(ComponentEntityInterface $entity, array $context = []) {
     $component_id = 'react-component-' . $entity->uuid();
     $bundle = $entity->bundle();
-    $view_mode = $context['view_mode'] ?? 'default';
 
     // Get React configuration.
     $react_config = $entity->getReactConfig();
@@ -147,53 +146,179 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
 
     // Build the render array.
     $build = [
-      '#theme' => 'component_react_wrapper',
+      '#theme' => 'component_react',
       '#component_id' => $component_id,
       '#component_type' => $bundle,
-      '#entity_id' => $entity->id(),
-      '#hydration_method' => $hydration_method,
       '#props' => $props,
       '#slots' => $slots,
+      '#hydration_method' => $hydration_method,
+      '#lazy_load' => $lazy_load,
       '#attached' => [
-        'library' => $this->getRequiredLibraries(),
+        'library' => [
+          'component_entity/react-renderer',
+        ],
         'drupalSettings' => [
           'componentEntity' => [
-            'components' => [
+            'react' => [
               $component_id => [
-                'type' => $bundle,
+                'componentType' => $bundle,
                 'props' => $props,
                 'slots' => $slots,
-                'config' => [
-                  'hydration' => $hydration_method,
-                  'lazy' => $lazy_load,
-                ],
+                'hydration' => $hydration_method,
+                'lazy' => $lazy_load,
               ],
             ],
           ],
         ],
       ],
-      '#cache' => [
-        'contexts' => $this->getCacheContexts(),
-        'tags' => $this->getCacheTags($entity),
-        'max-age' => $this->getCacheMaxAge($entity),
-      ],
     ];
 
-    // Add SSR content if enabled.
-    if ($ssr_enabled && $this->supportsSsr()) {
+    // Add component-specific React library if exists.
+    $library = "component_entity/react.$bundle";
+    if ($this->libraryDiscovery->getLibraryByName('component_entity', "react.$bundle")) {
+      $build['#attached']['library'][] = $library;
+    }
+
+    // If SSR is enabled and available, add server-rendered content.
+    if ($ssr_enabled && $this->isNodeAvailable()) {
       $build['#ssr_content'] = $this->renderServerSide($entity, $props, $slots);
     }
 
-    // Add loading placeholder for lazy-loaded components.
-    if ($lazy_load) {
-      $build['#loading_placeholder'] = TRUE;
-      $build['#show_spinner'] = TRUE;
+    // Add fallback for no-JS scenarios when using context view_mode.
+    if (!empty($context['progressive']) || !empty($react_config['progressive'])) {
+      $build['#fallback'] = $this->renderFallback($entity, $context);
     }
 
-    // Add fallback content for no-JS scenarios.
-    $build['#fallback_content'] = $this->renderFallback($entity, $context);
-
     return $build;
+  }
+
+  /**
+   * Extracts props from entity reference fields.
+   *
+   * @param \Drupal\Core\Field\FieldItemListInterface $field
+   *   The field item list.
+   *
+   * @return array|null
+   *   Array of entity reference data or NULL.
+   */
+  protected function extractEntityReferenceProps($field) {
+    if ($field->isEmpty()) {
+      return NULL;
+    }
+
+    $values = [];
+    foreach ($field as $item) {
+      if ($entity = $item->entity) {
+        $values[] = [
+          'id' => $entity->id(),
+          'uuid' => $entity->uuid(),
+          'label' => $entity->label(),
+          'type' => $entity->getEntityTypeId(),
+          'bundle' => $entity->bundle(),
+          'url' => $entity->toUrl('canonical')->toString(),
+        ];
+      }
+    }
+
+    // FIXED: Line 300 - Split long line that exceeds 80 characters.
+    $storage = $field->getFieldDefinition()->getFieldStorageDefinition();
+    return $storage->isMultiple() ? $values : $values[0] ?? NULL;
+  }
+
+  /**
+   * Extracts props from image fields.
+   *
+   * @param \Drupal\Core\Field\FieldItemListInterface $field
+   *   The field item list.
+   *
+   * @return array|null
+   *   Array of image data or NULL.
+   */
+  protected function extractImageProps($field) {
+    if ($field->isEmpty()) {
+      return NULL;
+    }
+
+    $values = [];
+    foreach ($field as $item) {
+      if ($file = $item->entity) {
+        $values[] = [
+          'url' => $file->createFileUrl(),
+          'alt' => $item->alt,
+          'title' => $item->title,
+          'width' => $item->width,
+          'height' => $item->height,
+        ];
+      }
+    }
+
+    // Split long line for better readability.
+    $storage = $field->getFieldDefinition()->getFieldStorageDefinition();
+    return $storage->isMultiple() ? $values : $values[0] ?? NULL;
+  }
+
+  /**
+   * Extracts props from link fields.
+   *
+   * @param \Drupal\Core\Field\FieldItemListInterface $field
+   *   The field item list.
+   *
+   * @return array|null
+   *   Array of link data or NULL.
+   */
+  protected function extractLinkProps($field) {
+    if ($field->isEmpty()) {
+      return NULL;
+    }
+
+    $values = [];
+    foreach ($field as $item) {
+      $values[] = [
+        'url' => $item->getUrl()->toString(),
+        'title' => $item->title,
+        'options' => $item->options,
+      ];
+    }
+
+    // Split long line for better readability.
+    $storage = $field->getFieldDefinition()->getFieldStorageDefinition();
+    return $storage->isMultiple() ? $values : $values[0] ?? NULL;
+  }
+
+  /**
+   * Extracts props from text fields.
+   *
+   * @param \Drupal\Core\Field\FieldItemListInterface $field
+   *   The field item list.
+   *
+   * @return string|array|null
+   *   Processed text value(s) or NULL.
+   */
+  protected function extractTextProps($field) {
+    if ($field->isEmpty()) {
+      return NULL;
+    }
+
+    $values = [];
+    foreach ($field as $item) {
+      // Check if field has format.
+      if (isset($item->format)) {
+        // Process through text format.
+        $build = [
+          '#type' => 'processed_text',
+          '#text' => $item->value,
+          '#format' => $item->format,
+        ];
+        $values[] = $this->renderer->renderRoot($build);
+      }
+      else {
+        $values[] = $item->value;
+      }
+    }
+
+    // Split long line for better readability.
+    $storage = $field->getFieldDefinition()->getFieldStorageDefinition();
+    return $storage->isMultiple() ? $values : $values[0] ?? NULL;
   }
 
   /**
@@ -297,7 +422,8 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
    *   The server-rendered HTML.
    */
   protected function renderServerSide(ComponentEntityInterface $entity, array $props, array $slots) {
-    // This would typically call a Node.js service to render React on the server.
+    // This would typically call a Node.js service
+    // to render React on the server.
     // For now, return empty string as placeholder.
     return '';
   }
