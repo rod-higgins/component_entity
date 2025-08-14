@@ -10,6 +10,8 @@ use Drupal\Component\Datetime\TimeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
+use Drupal\component_entity\Service\ValidatorInterface;
+use Drupal\component_entity\Service\CacheManagerInterface;
 
 /**
  * Form controller for Component entity edit forms.
@@ -31,6 +33,20 @@ class ComponentEntityForm extends ContentEntityForm {
   protected $currentUser;
 
   /**
+   * The component validator service.
+   *
+   * @var \Drupal\component_entity\Service\ValidatorInterface
+   */
+  protected $validator;
+
+  /**
+   * The cache manager service.
+   *
+   * @var \Drupal\component_entity\Service\CacheManagerInterface
+   */
+  protected $cacheManager;
+
+  /**
    * Constructs a ComponentEntityForm object.
    *
    * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
@@ -43,6 +59,10 @@ class ComponentEntityForm extends ContentEntityForm {
    *   The messenger service.
    * @param \Drupal\Core\Session\AccountProxyInterface $current_user
    *   The current user.
+   * @param \Drupal\component_entity\Service\ValidatorInterface $validator
+   *   The component validator service.
+   * @param \Drupal\component_entity\Service\CacheManagerInterface $cache_manager
+   *   The cache manager service.
    */
   public function __construct(
     EntityRepositoryInterface $entity_repository,
@@ -50,10 +70,14 @@ class ComponentEntityForm extends ContentEntityForm {
     TimeInterface $time,
     MessengerInterface $messenger,
     AccountProxyInterface $current_user,
+    ValidatorInterface $validator,
+    CacheManagerInterface $cache_manager,
   ) {
     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
     $this->messenger = $messenger;
     $this->currentUser = $current_user;
+    $this->validator = $validator;
+    $this->cacheManager = $cache_manager;
   }
 
   /**
@@ -65,8 +89,111 @@ class ComponentEntityForm extends ContentEntityForm {
       $container->get('entity_type.bundle.info'),
       $container->get('datetime.time'),
       $container->get('messenger'),
-      $container->get('current_user')
+      $container->get('current_user'),
+      $container->get('component_entity.validator'),
+      $container->get('component_entity.cache_manager')
     );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    parent::validateForm($form, $form_state);
+
+    /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
+    $entity = $this->buildEntity($form, $form_state);
+
+    // Validate component data against SDC schema if available.
+    try {
+      // Fixed: Use injected service instead of \Drupal::service()
+      $this->validator->validateComponent($entity);
+    }
+    catch (\Exception $e) {
+      $form_state->setError($form, $this->t('Component validation failed: @message', [
+        '@message' => $e->getMessage(),
+      ]));
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function save(array $form, FormStateInterface $form_state) {
+    /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
+    $entity = $this->entity;
+
+    // Process React configuration.
+    if ($form_state->hasValue('render_method')) {
+      $entity->set('render_method', $form_state->getValue('render_method'));
+
+      if ($form_state->getValue('render_method') === 'react') {
+        $react_config = [
+          'hydration' => $form_state->getValue('hydration', 'full'),
+          'progressive' => (bool) $form_state->getValue('progressive', FALSE),
+          'lazy' => (bool) $form_state->getValue('lazy', FALSE),
+          'ssr' => (bool) $form_state->getValue('ssr', FALSE),
+        ];
+        $entity->set('react_config', json_encode($react_config));
+      }
+    }
+
+    // Set revision information.
+    if ($entity->getEntityType()->isRevisionable()) {
+      $entity->setNewRevision();
+      $entity->setRevisionUserId($this->currentUser->id());
+      $entity->setRevisionCreationTime($this->time->getRequestTime());
+
+      // Set revision log message.
+      $revision_log = $form_state->getValue('revision_log');
+      if (empty($revision_log)) {
+        $revision_log = $this->t('Updated component @name', ['@name' => $entity->label()]);
+      }
+      $entity->setRevisionLogMessage($revision_log);
+    }
+
+    $status = parent::save($form, $form_state);
+
+    // Clear component cache.
+    // Fixed: Use injected service instead of \Drupal::service()
+    $this->cacheManager->invalidateComponentCache($entity);
+
+    // Set messages based on save status.
+    switch ($status) {
+      case SAVED_NEW:
+        $this->messenger->addMessage($this->t('Created the %label component.', [
+          '%label' => $entity->label(),
+        ]));
+        break;
+
+      default:
+        $this->messenger->addMessage($this->t('Saved the %label component.', [
+          '%label' => $entity->label(),
+        ]));
+    }
+
+    // Handle different submit buttons.
+    $triggering_element = $form_state->getTriggeringElement();
+
+    if (isset($triggering_element['#parents']) && in_array('save_continue', $triggering_element['#parents'])) {
+      // Stay on the edit form.
+      $form_state->setRedirect('entity.component.edit_form', ['component' => $entity->id()]);
+    }
+    elseif (isset($triggering_element['#parents']) && in_array('preview', $triggering_element['#parents'])) {
+      // Redirect to preview.
+      $form_state->setRedirect('component_entity.preview', ['component' => $entity->id()]);
+    }
+    else {
+      // Default redirect to canonical page.
+      if ($entity->hasLinkTemplate('canonical')) {
+        $form_state->setRedirectUrl($entity->toUrl('canonical'));
+      }
+      else {
+        $form_state->setRedirect('entity.component.collection');
+      }
+    }
+
+    return $status;
   }
 
   /**
@@ -238,102 +365,6 @@ class ComponentEntityForm extends ContentEntityForm {
     }
 
     return $form;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
-    parent::validateForm($form, $form_state);
-
-    /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
-    $entity = $this->buildEntity($form, $form_state);
-
-    // Validate component data against SDC schema if available.
-    try {
-      $validator = \Drupal::service('component_entity.validator');
-      $validator->validateComponent($entity);
-    }
-    catch (\Exception $e) {
-      $form_state->setError($form, $this->t('Component validation failed: @message', [
-        '@message' => $e->getMessage(),
-      ]));
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function save(array $form, FormStateInterface $form_state) {
-    /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
-    $entity = $this->entity;
-
-    // Process React configuration.
-    if ($form_state->hasValue('render_method')) {
-      $entity->set('render_method', $form_state->getValue('render_method'));
-
-      if ($form_state->getValue('render_method') === 'react') {
-        $react_config = [
-          'hydration' => $form_state->getValue('hydration', 'full'),
-          'progressive' => (bool) $form_state->getValue('progressive', FALSE),
-          'lazy' => (bool) $form_state->getValue('lazy', FALSE),
-          'ssr' => (bool) $form_state->getValue('ssr', FALSE),
-        ];
-        $entity->set('react_config', json_encode($react_config));
-      }
-    }
-
-    // Set revision information.
-    if ($entity->getEntityType()->isRevisionable()) {
-      $entity->setNewRevision();
-      $entity->setRevisionUserId($this->currentUser->id());
-      $entity->setRevisionCreationTime($this->time->getRequestTime());
-
-      // Set revision log message.
-      $revision_log = $form_state->getValue('revision_log');
-      if (empty($revision_log)) {
-        $revision_log = $this->t('Updated component @name', ['@name' => $entity->label()]);
-      }
-      $entity->setRevisionLogMessage($revision_log);
-    }
-
-    $status = parent::save($form, $form_state);
-
-    // Clear component cache.
-    $cache_manager = \Drupal::service('component_entity.cache_manager');
-    $cache_manager->invalidateComponentCache($entity);
-
-    // Set messages based on save status.
-    switch ($status) {
-      case SAVED_NEW:
-        $this->messenger->addMessage($this->t('Created the %label component.', [
-          '%label' => $entity->label(),
-        ]));
-        break;
-
-      default:
-        $this->messenger->addMessage($this->t('Saved the %label component.', [
-          '%label' => $entity->label(),
-        ]));
-    }
-
-    // Handle different submit buttons.
-    $triggering_element = $form_state->getTriggeringElement();
-
-    if (isset($triggering_element['#parents']) && in_array('save_continue', $triggering_element['#parents'])) {
-      // Stay on the edit form.
-      $form_state->setRedirect('entity.component.edit_form', ['component' => $entity->id()]);
-    }
-    elseif (isset($triggering_element['#parents']) && in_array('preview', $triggering_element['#parents'])) {
-      // Redirect to preview.
-      $form_state->setRedirect('component_entity.preview', ['component' => $entity->id()]);
-    }
-    else {
-      // Default redirect to canonical page.
-      $form_state->setRedirectUrl($entity->toUrl());
-    }
-
-    return $status;
   }
 
   /**
