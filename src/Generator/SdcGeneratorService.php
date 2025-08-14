@@ -17,31 +17,43 @@ use Psr\Log\LoggerInterface;
 class SdcGeneratorService {
 
   /**
+   * The entity field manager service.
+   *
    * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
   protected $entityFieldManager;
 
   /**
+   * The entity type manager service.
+   *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
   /**
+   * The file system service.
+   *
    * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
+   * The module handler service.
+   *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
+   * The theme handler service.
+   *
    * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
 
   /**
+   * The logger service.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
@@ -217,7 +229,7 @@ class SdcGeneratorService {
     $props = [];
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $component_type->id());
 
-    foreach ($fields as $field_name => $field_definition) {
+    foreach ($fields as $field_definition) {
       // Skip base fields and slot fields.
       if ($this->shouldSkipField($field_definition)) {
         continue;
