@@ -252,7 +252,8 @@ class JsonTextareaWidget extends WidgetBase {
     // Validate the JSON.
     $value = $triggering_element['#value'];
     if (!empty($value)) {
-      $decoded = json_decode($value, TRUE);
+      // Just decode to validate, we don't need the decoded value.
+      json_decode($value, TRUE);
       if (json_last_error() !== JSON_ERROR_NONE) {
         $element['#attributes']['class'][] = 'error';
         $element['#suffix'] = '<div class="json-validation-error">' .
