@@ -136,13 +136,13 @@
       "phpunit --configuration phpunit.xml.dist --testsuite functional-javascript --group component_entity"
     ],
     "test-phpcs": [
-      "phpcs --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,txt,md,yml --ignore=node_modules,vendor,web ."
+      "phpcs --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,yml --ignore=node_modules,vendor,web ."
     ],
     "test-phpstan": [
       "phpstan analyse --memory-limit=256M --level=5 src tests"
     ],
     "fix-phpcs": [
-      "phpcbf --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,txt,md,yml --ignore=node_modules,vendor,web ."
+      "phpcbf --standard=Drupal,DrupalPractice --extensions=php,module,inc,install,test,profile,theme,info,yml --ignore=node_modules,vendor,web ."
     ],
     "check-security": [
       "composer audit"

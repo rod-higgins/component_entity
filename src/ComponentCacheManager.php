@@ -7,6 +7,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 
 /**
@@ -36,6 +37,13 @@ class ComponentCacheManager {
   protected $entityTypeManager;
 
   /**
+   * The module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
    * Constructs a ComponentCacheManager object.
    *
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache_backend
@@ -44,15 +52,19 @@ class ComponentCacheManager {
    *   The cache tags invalidator.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler.
    */
   public function __construct(
     CacheBackendInterface $cache_backend,
     CacheTagsInvalidatorInterface $cache_tags_invalidator,
     EntityTypeManagerInterface $entity_type_manager,
+    ModuleHandlerInterface $module_handler,
   ) {
     $this->cacheBackend = $cache_backend;
     $this->cacheTagsInvalidator = $cache_tags_invalidator;
     $this->entityTypeManager = $entity_type_manager;
+    $this->moduleHandler = $module_handler;
   }
 
   /**
@@ -94,7 +106,7 @@ class ComponentCacheManager {
     }
 
     // Add field-specific cache metadata.
-    foreach ($entity->getFields() as $field_name => $field) {
+    foreach ($entity->getFields() as $field) {
       if ($field->getFieldDefinition()->isDisplayConfigurable('view')) {
         $field_metadata = CacheableMetadata::createFromRenderArray($field->view());
         $metadata = $metadata->merge($field_metadata);
@@ -102,7 +114,7 @@ class ComponentCacheManager {
     }
 
     // Allow other modules to alter cache metadata.
-    \Drupal::moduleHandler()->alter('component_entity_cache_metadata', $metadata, $entity);
+    $this->moduleHandler->alter('component_entity_cache_metadata', $metadata, $entity);
 
     return $metadata;
   }
@@ -260,7 +272,7 @@ class ComponentCacheManager {
    */
   protected function componentVariesByRoute(ComponentEntityInterface $entity) {
     // Check if component has contextual fields.
-    foreach ($entity->getFields() as $field_name => $field) {
+    foreach ($entity->getFields() as $field) {
       $field_type = $field->getFieldDefinition()->getType();
 
       // Entity reference fields might pull contextual data.

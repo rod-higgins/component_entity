@@ -21,21 +21,29 @@ class BiDirectionalSyncEvent extends Event {
   const POST_SYNC = 'component_entity.bi_directional_sync.post';
 
   /**
+   * The component type being synced.
+   *
    * @var \Drupal\component_entity\Entity\ComponentTypeInterface
    */
   protected $componentType;
 
   /**
+   * The operation being performed.
+   *
    * @var string
    */
   protected $operation;
 
   /**
+   * Results from the sync operation.
+   *
    * @var array
    */
   protected $results;
 
   /**
+   * Whether the sync operation has been cancelled.
+   *
    * @var bool
    */
   protected $cancelled = FALSE;
@@ -60,6 +68,7 @@ class BiDirectionalSyncEvent extends Event {
    * Gets the component type.
    *
    * @return \Drupal\component_entity\Entity\ComponentTypeInterface
+   *   The component type entity.
    */
   public function getComponentType() {
     return $this->componentType;
@@ -69,6 +78,7 @@ class BiDirectionalSyncEvent extends Event {
    * Gets the operation.
    *
    * @return string
+   *   The operation name (create, update, or delete).
    */
   public function getOperation() {
     return $this->operation;
@@ -78,6 +88,7 @@ class BiDirectionalSyncEvent extends Event {
    * Gets the results.
    *
    * @return array
+   *   The results array containing operation outcomes.
    */
   public function getResults() {
     return $this->results;
@@ -105,6 +116,7 @@ class BiDirectionalSyncEvent extends Event {
    * Checks if the sync was cancelled.
    *
    * @return bool
+   *   TRUE if the sync was cancelled, FALSE otherwise.
    */
   public function isCancelled() {
     return $this->cancelled;
@@ -128,16 +140,22 @@ class FileWriteEvent extends Event {
   const FILE_DELETED = 'component_entity.file.deleted';
 
   /**
+   * The file path being written or deleted.
+   *
    * @var string
    */
   protected $filePath;
 
   /**
+   * The content to be written to the file.
+   *
    * @var string
    */
   protected $content;
 
   /**
+   * Options for the file write operation.
+   *
    * @var array
    */
   protected $options;
@@ -162,6 +180,7 @@ class FileWriteEvent extends Event {
    * Gets the file path.
    *
    * @return string
+   *   The file path.
    */
   public function getFilePath() {
     return $this->filePath;
@@ -171,6 +190,7 @@ class FileWriteEvent extends Event {
    * Gets the content.
    *
    * @return string
+   *   The file content.
    */
   public function getContent() {
     return $this->content;
@@ -180,6 +200,7 @@ class FileWriteEvent extends Event {
    * Gets the options.
    *
    * @return array
+   *   The write options array.
    */
   public function getOptions() {
     return $this->options;
@@ -198,6 +219,8 @@ class ComponentSyncEvent extends Event {
   const COMPONENT_SYNCED = 'component_entity.component.synced';
 
   /**
+   * Event data including component_id, bundle, and is_new.
+   *
    * @var array
    */
   protected $data;
@@ -216,6 +239,7 @@ class ComponentSyncEvent extends Event {
    * Gets the event data.
    *
    * @return array
+   *   The event data array.
    */
   public function getData() {
     return $this->data;
@@ -230,6 +254,7 @@ class ComponentSyncEvent extends Event {
    *   Default value if key doesn't exist.
    *
    * @return mixed
+   *   The value for the specified key or the default value.
    */
   public function get($key, $default = NULL) {
     return $this->data[$key] ?? $default;
