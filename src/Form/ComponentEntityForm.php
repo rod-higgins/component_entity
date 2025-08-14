@@ -47,6 +47,13 @@ class ComponentEntityForm extends ContentEntityForm {
   protected $cacheManager;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * Constructs a ComponentEntityForm object.
    *
    * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
@@ -63,6 +70,8 @@ class ComponentEntityForm extends ContentEntityForm {
    *   The component validator service.
    * @param \Drupal\component_entity\Service\CacheManagerInterface $cache_manager
    *   The cache manager service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
   public function __construct(
     EntityRepositoryInterface $entity_repository,
@@ -72,12 +81,14 @@ class ComponentEntityForm extends ContentEntityForm {
     AccountProxyInterface $current_user,
     ValidatorInterface $validator,
     CacheManagerInterface $cache_manager,
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
     $this->messenger = $messenger;
     $this->currentUser = $current_user;
     $this->validator = $validator;
     $this->cacheManager = $cache_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -91,7 +102,8 @@ class ComponentEntityForm extends ContentEntityForm {
       $container->get('messenger'),
       $container->get('current_user'),
       $container->get('component_entity.validator'),
-      $container->get('component_entity.cache_manager')
+      $container->get('component_entity.cache_manager'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -382,7 +394,7 @@ class ComponentEntityForm extends ContentEntityForm {
     $entity = $this->buildEntity($form, $form_state);
 
     // Build preview render array.
-    $view_builder = \Drupal::entityTypeManager()->getViewBuilder('component');
+    $view_builder = $this->entityTypeManager->getViewBuilder('component');
     $preview = $view_builder->view($entity, 'default');
 
     // Wrap in preview container.
