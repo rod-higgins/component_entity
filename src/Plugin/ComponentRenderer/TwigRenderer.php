@@ -4,6 +4,7 @@ namespace Drupal\component_entity\Plugin\ComponentRenderer;
 
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 use Drupal\component_entity\Plugin\ComponentRendererBase;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Template\TwigEnvironment;
@@ -87,6 +88,13 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
   protected $moduleHandler;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * Constructs a TwigRenderer object.
    *
    * @param array $configuration
@@ -105,6 +113,8 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
    *   The theme manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
   public function __construct(
     array $configuration,
@@ -115,6 +125,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     ComponentPluginManager $component_manager,
     ThemeManagerInterface $theme_manager,
     ModuleHandlerInterface $module_handler,
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->renderer = $renderer;
@@ -122,6 +133,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     $this->componentManager = $component_manager;
     $this->themeManager = $theme_manager;
     $this->moduleHandler = $module_handler;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -136,8 +148,40 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       $container->get('twig'),
       $container->get('plugin.manager.sdc'),
       $container->get('theme.manager'),
-      $container->get('module_handler')
+      $container->get('module_handler'),
+      $container->get('entity_type.manager')
     );
+  }
+
+  /**
+   * Processes entity reference fields.
+   *
+   * @param \Drupal\component_entity\Entity\ComponentEntityInterface $entity
+   *   The component entity.
+   * @param array &$variables
+   *   The variables array.
+   */
+  protected function processEntityReferences(ComponentEntityInterface $entity, array &$variables) {
+    foreach ($entity->getFields() as $field_name => $field) {
+      $field_definition = $field->getFieldDefinition();
+
+      if ($field_definition->getType() === 'entity_reference' ||
+          $field_definition->getType() === 'entity_reference_revisions') {
+        $referenced_entities = $field->referencedEntities();
+
+        if (!empty($referenced_entities)) {
+          $variables['references'][$field_name] = $referenced_entities;
+
+          // Add rendered versions.
+          $view_builder = $this->entityTypeManager
+            ->getViewBuilder($field_definition->getSetting('target_type'));
+
+          foreach ($referenced_entities as $delta => $referenced_entity) {
+            $variables['rendered_references'][$field_name][$delta] = $view_builder->view($referenced_entity, 'teaser');
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -361,37 +405,6 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     $build['#suffix'] = '</div>';
 
     return $build;
-  }
-
-  /**
-   * Processes entity reference fields.
-   *
-   * @param \Drupal\component_entity\Entity\ComponentEntityInterface $entity
-   *   The component entity.
-   * @param array &$variables
-   *   The variables array.
-   */
-  protected function processEntityReferences(ComponentEntityInterface $entity, array &$variables) {
-    foreach ($entity->getFields() as $field_name => $field) {
-      $field_definition = $field->getFieldDefinition();
-
-      if ($field_definition->getType() === 'entity_reference' ||
-          $field_definition->getType() === 'entity_reference_revisions') {
-        $referenced_entities = $field->referencedEntities();
-
-        if (!empty($referenced_entities)) {
-          $variables['references'][$field_name] = $referenced_entities;
-
-          // Add rendered versions.
-          $view_builder = \Drupal::entityTypeManager()
-            ->getViewBuilder($field_definition->getSetting('target_type'));
-
-          foreach ($referenced_entities as $delta => $referenced_entity) {
-            $variables['rendered_references'][$field_name][$delta] = $view_builder->view($referenced_entity, 'teaser');
-          }
-        }
-      }
-    }
   }
 
   /**
