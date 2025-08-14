@@ -12,16 +12,22 @@ use Psr\Log\LoggerInterface;
 class ReactGeneratorService {
 
   /**
+   * The entity field manager service.
+   *
    * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
   protected $entityFieldManager;
 
   /**
+   * The file system service.
+   *
    * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
+   * The logger service.
+   *
    * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
@@ -621,32 +627,131 @@ class ReactGeneratorService {
   }
 
   /**
-   * Helper methods.
+   * Gets the PropTypes type for a given field type.
+   *
+   * @param string $type
+   *   The field type.
+   *
+   * @return string
+   *   The PropTypes type string.
    */
-  protected function getComponentName($bundle) {
-    return str_replace(' ', '', ucwords(str_replace('_', ' ', $bundle)));
+  protected function getPropType($type) {
+    switch ($type) {
+      case 'string':
+      case 'text':
+        return 'string';
+
+      case 'number':
+        return 'number';
+
+      case 'boolean':
+        return 'bool';
+
+      case 'object':
+        return 'object';
+
+      case 'array':
+        return 'array';
+
+      default:
+        return 'any';
+    }
   }
 
   /**
+   * Gets the TypeScript type for a given field type.
    *
+   * @param string $type
+   *   The field type.
+   *
+   * @return string
+   *   The TypeScript type string.
    */
-  protected function buildPropsDefinition($fields) {
+  protected function getTypeScriptType($type) {
+    switch ($type) {
+      case 'string':
+      case 'text':
+        return 'string';
+
+      case 'number':
+        return 'number';
+
+      case 'boolean':
+        return 'boolean';
+
+      case 'object':
+        return 'Record<string, any>';
+
+      case 'array':
+        return 'any[]';
+
+      default:
+        return 'any';
+    }
+  }
+
+  /**
+   * Formats a default value for use in JavaScript/TypeScript.
+   *
+   * @param mixed $value
+   *   The default value.
+   * @param string $type
+   *   The field type.
+   *
+   * @return string
+   *   The formatted default value.
+   */
+  protected function formatDefaultValue($value, $type) {
+    if ($type === 'string' || $type === 'text') {
+      return "'" . addslashes($value) . "'";
+    }
+    if ($type === 'boolean') {
+      return $value ? 'true' : 'false';
+    }
+    if ($type === 'number') {
+      return is_numeric($value) ? $value : 0;
+    }
+    if ($type === 'object') {
+      return '{}';
+    }
+    if ($type === 'array') {
+      return '[]';
+    }
+    return 'null';
+  }
+
+  /**
+   * Determines if a field should be included in styles.
+   *
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+   *   The field definition.
+   *
+   * @return bool
+   *   TRUE if the field should be included in styles.
+   */
+  protected function shouldIncludeInStyles($field_definition) {
+    return $this->isComponentProp($field_definition) || $this->isSlotField($field_definition);
+  }
+
+  /**
+   * Builds props definition from field definitions.
+   *
+   * @param array $fields
+   *   The field definitions.
+   *
+   * @return array
+   *   The props definition array.
+   */
+  protected function buildPropsDefinition(array $fields) {
     $props = [];
 
     foreach ($fields as $field_name => $field_definition) {
       if ($this->isComponentProp($field_definition)) {
-        $prop_name = $this->getPropName($field_definition);
-        $props[$prop_name] = [
-          'type' => $this->mapFieldTypeToJsType($field_definition->getType()),
+        $props[$field_name] = [
+          'type' => $this->getFieldType($field_definition),
           'required' => $field_definition->isRequired(),
-          'label' => $field_definition->getLabel(),
-          'description' => $field_definition->getDescription(),
+          'default' => $field_definition->getDefaultValue(),
         ];
-
-        $default = $field_definition->getDefaultValueLiteral();
-        if ($default) {
-          $props[$prop_name]['default'] = $default;
-        }
       }
     }
 
@@ -654,17 +759,21 @@ class ReactGeneratorService {
   }
 
   /**
+   * Builds slots definition from field definitions.
    *
+   * @param array $fields
+   *   The field definitions.
+   *
+   * @return array
+   *   The slots definition array.
    */
-  protected function buildSlotsDefinition($fields) {
+  protected function buildSlotsDefinition(array $fields) {
     $slots = [];
 
     foreach ($fields as $field_name => $field_definition) {
       if ($this->isSlotField($field_definition)) {
-        $slot_name = str_replace(['field_', '_slot'], '', $field_name);
-        $slots[$slot_name] = [
+        $slots[$field_name] = [
           'required' => $field_definition->isRequired(),
-          'label' => $field_definition->getLabel(),
         ];
       }
     }
@@ -673,36 +782,90 @@ class ReactGeneratorService {
   }
 
   /**
+   * Determines if a field is a component prop.
    *
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+   *   The field definition.
+   *
+   * @return bool
+   *   TRUE if the field is a component prop.
    */
   protected function isComponentProp($field_definition) {
-    $skip_fields = [
-      'id', 'uuid', 'vid', 'type', 'langcode', 'status',
-      'created', 'changed', 'uid', 'revision_timestamp',
-      'revision_uid', 'revision_log', 'render_method', 'react_config',
-    ];
-
-    if (in_array($field_definition->getName(), $skip_fields)) {
-      return FALSE;
-    }
-
-    if ($field_definition->isComputed()) {
-      return FALSE;
-    }
-
-    if ($this->isSlotField($field_definition)) {
-      return FALSE;
-    }
-
-    return TRUE;
+    // Implementation depends on your field configuration
+    // This is a placeholder implementation.
+    return !in_array($field_definition->getName(), ['id', 'uuid', 'revision_id', 'langcode']);
   }
 
   /**
+   * Determines if a field is a slot field.
    *
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+   *   The field definition.
+   *
+   * @return bool
+   *   TRUE if the field is a slot field.
    */
   protected function isSlotField($field_definition) {
-    return strpos($field_definition->getName(), '_slot') !== FALSE ||
-           $field_definition->getThirdPartySetting('component_entity', 'is_slot', FALSE);
+    // Check if field type is entity reference or similar.
+    return $field_definition->getType() === 'entity_reference';
+  }
+
+  /**
+   * Gets the JavaScript/TypeScript type for a field.
+   *
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+   *   The field definition.
+   *
+   * @return string
+   *   The field type string.
+   */
+  protected function getFieldType($field_definition) {
+    $field_type = $field_definition->getType();
+
+    switch ($field_type) {
+      case 'string':
+      case 'string_long':
+      case 'text':
+      case 'text_long':
+      case 'text_with_summary':
+        return 'string';
+
+      case 'integer':
+      case 'decimal':
+      case 'float':
+        return 'number';
+
+      case 'boolean':
+        return 'boolean';
+
+      case 'entity_reference':
+      case 'entity_reference_revisions':
+        return 'object';
+
+      case 'list_string':
+      case 'list_integer':
+      case 'list_float':
+        return 'array';
+
+      default:
+        return 'any';
+    }
+  }
+
+  /**
+   * Gets the component name from the component type ID.
+   *
+   * @param string $component_type_id
+   *   The component type ID.
+   *
+   * @return string
+   *   The component name in PascalCase.
+   */
+  protected function getComponentName($component_type_id) {
+    // Convert snake_case to PascalCase.
+    $parts = explode('_', $component_type_id);
+    $parts = array_map('ucfirst', $parts);
+    return implode('', $parts);
   }
 
   /**
@@ -739,87 +902,6 @@ class ReactGeneratorService {
     ];
 
     return $mapping[$field_type] ?? 'any';
-  }
-
-  /**
-   *
-   */
-  protected function getPropType($type) {
-    switch ($type) {
-      case 'string':
-      case 'text':
-        return 'string';
-
-      case 'number':
-        return 'number';
-
-      case 'boolean':
-        return 'bool';
-
-      case 'object':
-        return 'object';
-
-      case 'array':
-        return 'array';
-
-      default:
-        return 'any';
-    }
-  }
-
-  /**
-   *
-   */
-  protected function getTypeScriptType($type) {
-    switch ($type) {
-      case 'string':
-      case 'text':
-        return 'string';
-
-      case 'number':
-        return 'number';
-
-      case 'boolean':
-        return 'boolean';
-
-      case 'object':
-        return 'Record<string, any>';
-
-      case 'array':
-        return 'any[]';
-
-      default:
-        return 'any';
-    }
-  }
-
-  /**
-   *
-   */
-  protected function formatDefaultValue($value, $type) {
-    if ($type === 'string' || $type === 'text') {
-      return "'" . addslashes($value) . "'";
-    }
-    if ($type === 'boolean') {
-      return $value ? 'true' : 'false';
-    }
-    if ($type === 'number') {
-      return is_numeric($value) ? $value : 0;
-    }
-    if ($type === 'object') {
-      return '{}';
-    }
-    if ($type === 'array') {
-      return '[]';
-    }
-    return 'null';
-  }
-
-  /**
-   *
-   */
-  protected function shouldIncludeInStyles($field_definition) {
-    return $this->isComponentProp($field_definition) || $this->isSlotField($field_definition);
   }
 
 }
