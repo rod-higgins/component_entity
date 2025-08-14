@@ -49,7 +49,7 @@ class ComponentEntityForm extends ContentEntityForm {
     EntityTypeBundleInfoInterface $entity_type_bundle_info,
     TimeInterface $time,
     MessengerInterface $messenger,
-    AccountProxyInterface $current_user
+    AccountProxyInterface $current_user,
   ) {
     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
     $this->messenger = $messenger;
@@ -74,15 +74,15 @@ class ComponentEntityForm extends ContentEntityForm {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-    
+
     /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
     $entity = $this->entity;
-    
+
     // Add component type information.
     $component_type = $this->entityTypeManager
       ->getStorage('component_type')
       ->load($entity->bundle());
-    
+
     if ($component_type) {
       $form['component_info'] = [
         '#type' => 'details',
@@ -91,24 +91,24 @@ class ComponentEntityForm extends ContentEntityForm {
         '#weight' => -100,
         '#attributes' => ['class' => ['component-info-wrapper']],
       ];
-      
+
       $form['component_info']['type_label'] = [
         '#type' => 'item',
         '#title' => $this->t('Component Type'),
         '#markup' => $component_type->label(),
       ];
-      
+
       if ($description = $component_type->get('description')) {
         $form['component_info']['type_description'] = [
           '#type' => 'item',
           '#markup' => $description,
         ];
       }
-      
+
       // Check if both render methods are available.
       $rendering_config = $component_type->get('rendering') ?? [];
       $has_dual_render = !empty($rendering_config['twig_enabled']) && !empty($rendering_config['react_enabled']);
-      
+
       if ($has_dual_render) {
         // Add render method selection.
         $form['render_settings'] = [
@@ -118,7 +118,7 @@ class ComponentEntityForm extends ContentEntityForm {
           '#weight' => 100,
           '#attributes' => ['class' => ['component-render-settings']],
         ];
-        
+
         $form['render_settings']['render_method'] = [
           '#type' => 'radios',
           '#title' => $this->t('Render Method'),
@@ -130,13 +130,13 @@ class ComponentEntityForm extends ContentEntityForm {
           '#description' => $this->t('Choose how this component should be rendered. Twig provides server-side rendering for better SEO, while React enables client-side interactivity.'),
           '#required' => TRUE,
         ];
-        
+
         // React-specific settings.
         $react_config = $entity->get('react_config')->value ?? [];
         if (is_string($react_config)) {
           $react_config = json_decode($react_config, TRUE) ?? [];
         }
-        
+
         $form['render_settings']['react_settings'] = [
           '#type' => 'container',
           '#states' => [
@@ -146,7 +146,7 @@ class ComponentEntityForm extends ContentEntityForm {
           ],
           '#attributes' => ['class' => ['react-settings-container']],
         ];
-        
+
         $form['render_settings']['react_settings']['hydration'] = [
           '#type' => 'select',
           '#title' => $this->t('Hydration Method'),
@@ -158,27 +158,28 @@ class ComponentEntityForm extends ContentEntityForm {
           '#default_value' => $react_config['hydration'] ?? 'full',
           '#description' => $this->t('Controls how React components are initialized on the client.'),
         ];
-        
+
         $form['render_settings']['react_settings']['progressive'] = [
           '#type' => 'checkbox',
           '#title' => $this->t('Progressive Enhancement'),
           '#default_value' => $react_config['progressive'] ?? FALSE,
           '#description' => $this->t('Render with Twig first, then enhance with React. Provides better initial load performance.'),
         ];
-        
+
         $form['render_settings']['react_settings']['lazy'] = [
           '#type' => 'checkbox',
           '#title' => $this->t('Lazy Load Component'),
           '#default_value' => $react_config['lazy'] ?? FALSE,
           '#description' => $this->t('Load the React component only when needed, reducing initial bundle size.'),
         ];
-        
+
         $form['render_settings']['react_settings']['ssr'] = [
           '#type' => 'checkbox',
           '#title' => $this->t('Server-Side Rendering (SSR)'),
           '#default_value' => $react_config['ssr'] ?? FALSE,
           '#description' => $this->t('Enable server-side rendering for better SEO and initial paint. Requires Node.js SSR service.'),
-          '#disabled' => TRUE, // Disable until SSR service is configured.
+        // Disable until SSR service is configured.
+          '#disabled' => TRUE,
         ];
       }
       else {
@@ -190,7 +191,7 @@ class ComponentEntityForm extends ContentEntityForm {
         ];
       }
     }
-    
+
     // Add preview button.
     $form['actions']['preview'] = [
       '#type' => 'submit',
@@ -199,7 +200,7 @@ class ComponentEntityForm extends ContentEntityForm {
       '#weight' => 5,
       '#attributes' => ['class' => ['button--preview']],
     ];
-    
+
     // Add "Save and continue" button for better UX.
     $form['actions']['save_continue'] = [
       '#type' => 'submit',
@@ -208,10 +209,10 @@ class ComponentEntityForm extends ContentEntityForm {
       '#weight' => 7,
       '#attributes' => ['class' => ['button--primary']],
     ];
-    
+
     // Attach library for form enhancements.
     $form['#attached']['library'][] = 'component_entity/admin';
-    
+
     // Add AJAX preview container if in edit mode.
     if (!$entity->isNew()) {
       $form['preview_container'] = [
@@ -219,7 +220,7 @@ class ComponentEntityForm extends ContentEntityForm {
         '#weight' => 200,
         '#attributes' => ['id' => 'component-preview-container'],
       ];
-      
+
       $form['actions']['ajax_preview'] = [
         '#type' => 'button',
         '#value' => $this->t('Update Preview'),
@@ -235,7 +236,7 @@ class ComponentEntityForm extends ContentEntityForm {
         '#attributes' => ['class' => ['button--small']],
       ];
     }
-    
+
     return $form;
   }
 
@@ -244,10 +245,10 @@ class ComponentEntityForm extends ContentEntityForm {
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     parent::validateForm($form, $form_state);
-    
+
     /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
     $entity = $this->buildEntity($form, $form_state);
-    
+
     // Validate component data against SDC schema if available.
     try {
       $validator = \Drupal::service('component_entity.validator');
@@ -266,11 +267,11 @@ class ComponentEntityForm extends ContentEntityForm {
   public function save(array $form, FormStateInterface $form_state) {
     /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
     $entity = $this->entity;
-    
+
     // Process React configuration.
     if ($form_state->hasValue('render_method')) {
       $entity->set('render_method', $form_state->getValue('render_method'));
-      
+
       if ($form_state->getValue('render_method') === 'react') {
         $react_config = [
           'hydration' => $form_state->getValue('hydration', 'full'),
@@ -281,13 +282,13 @@ class ComponentEntityForm extends ContentEntityForm {
         $entity->set('react_config', json_encode($react_config));
       }
     }
-    
+
     // Set revision information.
     if ($entity->getEntityType()->isRevisionable()) {
       $entity->setNewRevision();
       $entity->setRevisionUserId($this->currentUser->id());
       $entity->setRevisionCreationTime($this->time->getRequestTime());
-      
+
       // Set revision log message.
       $revision_log = $form_state->getValue('revision_log');
       if (empty($revision_log)) {
@@ -295,13 +296,13 @@ class ComponentEntityForm extends ContentEntityForm {
       }
       $entity->setRevisionLogMessage($revision_log);
     }
-    
+
     $status = parent::save($form, $form_state);
-    
+
     // Clear component cache.
     $cache_manager = \Drupal::service('component_entity.cache_manager');
     $cache_manager->invalidateComponentCache($entity);
-    
+
     // Set messages based on save status.
     switch ($status) {
       case SAVED_NEW:
@@ -309,16 +310,16 @@ class ComponentEntityForm extends ContentEntityForm {
           '%label' => $entity->label(),
         ]));
         break;
-        
+
       default:
         $this->messenger->addMessage($this->t('Saved the %label component.', [
           '%label' => $entity->label(),
         ]));
     }
-    
+
     // Handle different submit buttons.
     $triggering_element = $form_state->getTriggeringElement();
-    
+
     if (isset($triggering_element['#parents']) && in_array('save_continue', $triggering_element['#parents'])) {
       // Stay on the edit form.
       $form_state->setRedirect('entity.component.edit_form', ['component' => $entity->id()]);
@@ -331,7 +332,7 @@ class ComponentEntityForm extends ContentEntityForm {
       // Default redirect to canonical page.
       $form_state->setRedirectUrl($entity->toUrl());
     }
-    
+
     return $status;
   }
 
@@ -348,11 +349,11 @@ class ComponentEntityForm extends ContentEntityForm {
    */
   public function ajaxPreview(array &$form, FormStateInterface $form_state) {
     $entity = $this->buildEntity($form, $form_state);
-    
+
     // Build preview render array.
     $view_builder = \Drupal::entityTypeManager()->getViewBuilder('component');
     $preview = $view_builder->view($entity, 'default');
-    
+
     // Wrap in preview container.
     $response = [
       '#theme' => 'component_preview',
@@ -361,7 +362,7 @@ class ComponentEntityForm extends ContentEntityForm {
       '#render_method' => $entity->get('render_method')->value ?? 'twig',
       '#cache_tags' => $entity->getCacheTags(),
     ];
-    
+
     return $response;
   }
 
@@ -370,21 +371,21 @@ class ComponentEntityForm extends ContentEntityForm {
    */
   protected function actions(array $form, FormStateInterface $form_state) {
     $actions = parent::actions($form, $form_state);
-    
+
     // Customize button labels.
     if (isset($actions['submit'])) {
-      $actions['submit']['#value'] = $this->entity->isNew() 
-        ? $this->t('Create component') 
+      $actions['submit']['#value'] = $this->entity->isNew()
+        ? $this->t('Create component')
         : $this->t('Save component');
     }
-    
+
     // Add classes for styling.
     $actions['submit']['#attributes']['class'][] = 'button--primary';
-    
+
     if (isset($actions['delete'])) {
       $actions['delete']['#attributes']['class'][] = 'button--danger';
     }
-    
+
     return $actions;
   }
 

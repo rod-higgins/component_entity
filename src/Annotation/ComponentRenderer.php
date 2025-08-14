@@ -7,7 +7,7 @@ use Drupal\Component\Annotation\Plugin;
 /**
  * Defines a Component Renderer plugin annotation object.
  *
- * Plugin namespace: Plugin\ComponentRenderer
+ * Plugin namespace: Plugin\ComponentRenderer.
  *
  * @see \Drupal\component_entity\Plugin\ComponentRendererManager
  * @see plugin_api

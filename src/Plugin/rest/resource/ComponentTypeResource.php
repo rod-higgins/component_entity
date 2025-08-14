@@ -52,7 +52,7 @@ class ComponentTypeResource extends ResourceBase {
     $plugin_definition,
     array $serializer_formats,
     LoggerInterface $logger,
-    EntityTypeManagerInterface $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $serializer_formats, $logger);
     $this->entityTypeManager = $entity_type_manager;
@@ -109,7 +109,7 @@ class ComponentTypeResource extends ResourceBase {
 
     $response = new ResourceResponse($data, 200);
     $response->addCacheableDependency($type);
-    
+
     return $response;
   }
 
@@ -136,12 +136,12 @@ class ComponentTypeResource extends ResourceBase {
     }
 
     $response = new ResourceResponse($data, 200);
-    
+
     // Add cache tags for all types.
     foreach ($types as $type) {
       $response->addCacheableDependency($type);
     }
-    
+
     return $response;
   }
 

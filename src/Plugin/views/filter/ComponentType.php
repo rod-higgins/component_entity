@@ -57,18 +57,18 @@ class ComponentType extends InOperator implements ContainerFactoryPluginInterfac
   public function getValueOptions() {
     if (!isset($this->valueOptions)) {
       $this->valueOptions = [];
-      
+
       // Load all component types.
       $component_types = $this->componentTypeStorage->loadMultiple();
-      
+
       foreach ($component_types as $type) {
         $this->valueOptions[$type->id()] = $type->label();
       }
-      
+
       // Sort alphabetically.
       asort($this->valueOptions);
     }
-    
+
     return $this->valueOptions;
   }
 
@@ -77,10 +77,10 @@ class ComponentType extends InOperator implements ContainerFactoryPluginInterfac
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['expose']['contains']['reduce'] = ['default' => TRUE];
     $options['show_sdc_info'] = ['default' => FALSE];
-    
+
     return $options;
   }
 
@@ -89,7 +89,7 @@ class ComponentType extends InOperator implements ContainerFactoryPluginInterfac
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     $form['show_sdc_info'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Show SDC component info'),
@@ -108,13 +108,13 @@ class ComponentType extends InOperator implements ContainerFactoryPluginInterfac
     if (!empty($this->options['exposed'])) {
       return $this->t('exposed');
     }
-    
+
     $types = $this->getValueOptions();
-    
+
     if (!is_array($this->value)) {
       return '';
     }
-    
+
     if (count($this->value) == 1) {
       $value = reset($this->value);
       if (isset($types[$value])) {
@@ -130,7 +130,7 @@ class ComponentType extends InOperator implements ContainerFactoryPluginInterfac
       }
       return implode(', ', $values);
     }
-    
+
     return parent::adminSummary();
   }
 
@@ -139,12 +139,12 @@ class ComponentType extends InOperator implements ContainerFactoryPluginInterfac
    */
   public function validate() {
     parent::validate();
-    
+
     // Check if selected component types exist.
     if (!empty($this->value) && is_array($this->value)) {
       $component_types = $this->componentTypeStorage->loadMultiple($this->value);
       $missing = array_diff($this->value, array_keys($component_types));
-      
+
       if (!empty($missing)) {
         $this->broken = TRUE;
       }

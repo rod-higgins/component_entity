@@ -2,28 +2,22 @@
 
 namespace Drupal\component_entity;
 
-use Drupal\Core\Entity\EntityFieldManagerInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Field\FieldTypePluginManagerInterface;
-use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\field\Entity\FieldConfig;
-
 /**
  * Manages field operations for component entities.
  */
 class ComponentFieldManager {
-  
+
   /**
    * Maps SDC prop types to Drupal field types.
    */
   public function mapPropToFieldType($prop_schema) {
     $type = $prop_schema->type ?? 'string';
-    
-    // Handle special cases first
+
+    // Handle special cases first.
     if (isset($prop_schema->enum)) {
       return 'list_string';
     }
-    
+
     $mapping = [
       'string' => 'string',
       'text' => 'text_long',
@@ -33,10 +27,10 @@ class ComponentFieldManager {
       'object' => 'map',
       'array' => 'entity_reference',
     ];
-    
+
     return $mapping[$type] ?? 'string';
   }
-  
+
   /**
    * Creates fields for a component bundle from SDC props.
    */
@@ -46,4 +40,5 @@ class ComponentFieldManager {
       $this->createField($bundle, $field_name, $prop_schema);
     }
   }
+
 }

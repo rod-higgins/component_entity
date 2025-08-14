@@ -33,12 +33,11 @@
     "symfony/css-selector": "^6.3 || ^7",
     "behat/mink": "^1.10",
     "behat/mink-selenium2-driver": "^1.6",
-    "friends-of-behat/mink-browserkit-driver": "^1.6",
     "mikey179/vfsstream": "^1.6",
     "phpstan/phpstan": "^1.10",
     "phpstan/phpstan-deprecation-rules": "^1.1",
     "phpstan/phpstan-phpunit": "^1.3",
-    "mglaman/phpstan-drupal": "^1.2",
+    "mglaman/phpstan-drupal": "^1.2 || ^2.0",
     "drupal/coder": "^8.3",
     "squizlabs/php_codesniffer": "^3.7",
     "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
@@ -63,13 +62,8 @@
       "dealerdirect/phpcodesniffer-composer-installer": true,
       "phpstan/extension-installer": true,
       "cweagans/composer-patches": true,
-      "php-http/discovery": true
-    },
-    "platform": {
-      "php": "8.1"
-    },
-    "preferred-install": {
-      "drupal/core": "dist"
+      "php-http/discovery": true,
+      "tbachert/spi": true
     }
   },
   "extra": {
@@ -114,20 +108,6 @@
     }
   ],
   "scripts": {
-    "pre-install-cmd": [
-      "Drupal\\Core\\Composer\\Composer::preInstall"
-    ],
-    "post-install-cmd": [
-      "Drupal\\Core\\Composer\\Composer::ensureComposerVersion",
-      "@composer run prepare-tests"
-    ],
-    "pre-update-cmd": [
-      "Drupal\\Core\\Composer\\Composer::preInstall"
-    ],
-    "post-update-cmd": [
-      "Drupal\\Core\\Composer\\Composer::ensureComposerVersion",
-      "@composer run prepare-tests"
-    ],
     "prepare-tests": [
       "rm -rf web/modules/contrib/component_entity",
       "mkdir -p web/modules/contrib",

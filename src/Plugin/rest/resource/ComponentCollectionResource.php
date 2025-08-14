@@ -62,7 +62,7 @@ class ComponentCollectionResource extends ResourceBase {
     array $serializer_formats,
     LoggerInterface $logger,
     EntityTypeManagerInterface $entity_type_manager,
-    Request $current_request
+    Request $current_request,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $serializer_formats, $logger);
     $this->entityTypeManager = $entity_type_manager;
@@ -145,14 +145,14 @@ class ComponentCollectionResource extends ResourceBase {
     $data['links'] = $this->buildPaginationLinks($total, $limit, $offset);
 
     $response = new ResourceResponse($data, 200);
-    
+
     // Add cache metadata.
     $cache_tags = ['component_list'];
     foreach ($components as $component) {
       $response->addCacheableDependency($component);
     }
     $response->getCacheableMetadata()->addCacheTags($cache_tags);
-    
+
     return $response;
   }
 

@@ -153,7 +153,7 @@ class JsonItem extends FieldItemBase {
     if (isset($schema_obj['type'])) {
       $type = gettype($data);
       $expected = $schema_obj['type'];
-      
+
       $type_map = [
         'integer' => 'integer',
         'double' => 'number',

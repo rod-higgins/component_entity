@@ -75,7 +75,7 @@ class ComponentReferenceWidget extends EntityReferenceAutocompleteWidget impleme
     array $third_party_settings,
     EntityTypeManagerInterface $entity_type_manager,
     EntityDisplayRepositoryInterface $entity_display_repository,
-    RendererInterface $renderer
+    RendererInterface $renderer,
   ) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $third_party_settings);
     $this->entityTypeManager = $entity_type_manager;
@@ -361,7 +361,7 @@ class ComponentReferenceWidget extends EntityReferenceAutocompleteWidget impleme
 
     // Get the component form display.
     $form_display = $this->entityDisplayRepository->getFormDisplay('component', $entity->bundle(), 'default');
-    
+
     // Build a subset of the component form.
     $component_form = [];
     $form_display->buildForm($entity, $component_form, $form_state);
@@ -545,27 +545,27 @@ class ComponentReferenceWidget extends EntityReferenceAutocompleteWidget impleme
     $triggering_element = $form_state->getTriggeringElement();
     $element_parents = array_slice($triggering_element['#array_parents'], 0, -2);
     $widget_element = NestedArray::getValue($form, $element_parents);
-    
+
     // Get the referenced entity.
     $entity_id = $widget_element['target_id']['#value'];
     if ($entity_id) {
       $storage = $this->entityTypeManager->getStorage('component');
       $entity = $storage->load($entity_id);
-      
+
       if ($entity) {
         // Duplicate the entity.
         $duplicate = $entity->createDuplicate();
         $duplicate->set('name', $entity->label() . ' (Copy)');
         $duplicate->save();
-        
+
         // Update the form value to reference the duplicate.
         $form_state->setValueForElement($widget_element['target_id'], $duplicate->id());
-        
+
         // Add a message.
         \Drupal::messenger()->addMessage($this->t('Component duplicated successfully.'));
       }
     }
-    
+
     $form_state->setRebuild();
   }
 
@@ -578,11 +578,11 @@ class ComponentReferenceWidget extends EntityReferenceAutocompleteWidget impleme
   protected function getDisplayModeOptions() {
     $options = [];
     $display_modes = $this->entityDisplayRepository->getViewModes('component');
-    
+
     foreach ($display_modes as $mode => $info) {
       $options[$mode] = $info['label'];
     }
-    
+
     return $options;
   }
 
@@ -591,7 +591,7 @@ class ComponentReferenceWidget extends EntityReferenceAutocompleteWidget impleme
    */
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
     $values = parent::massageFormValues($values, $form, $form_state);
-    
+
     // Process prop overrides and other custom data.
     foreach ($values as &$value) {
       if (isset($value['prop_overrides'])) {
@@ -599,14 +599,14 @@ class ComponentReferenceWidget extends EntityReferenceAutocompleteWidget impleme
         $value['override_props'] = array_filter($value['prop_overrides']);
         unset($value['prop_overrides']);
       }
-      
+
       // Add any display settings.
       if (isset($value['preview_display_mode'])) {
         $value['display_settings']['display_mode'] = $value['preview_display_mode'];
         unset($value['preview_display_mode']);
       }
     }
-    
+
     return $values;
   }
 

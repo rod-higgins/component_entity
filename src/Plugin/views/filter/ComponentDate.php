@@ -19,10 +19,10 @@ class ComponentDate extends Date {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['value']['contains']['preset'] = ['default' => ''];
     $options['expose']['contains']['use_presets'] = ['default' => TRUE];
-    
+
     return $options;
   }
 
@@ -31,7 +31,7 @@ class ComponentDate extends Date {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     // Add preset options before the regular date fields.
     $form['value']['preset'] = [
       '#type' => 'select',
@@ -41,20 +41,20 @@ class ComponentDate extends Date {
       '#weight' => -10,
       '#description' => $this->t('Select a preset or choose "Custom" to specify exact dates.'),
     ];
-    
+
     // Add states to show/hide custom date fields.
     $form['value']['value']['#states'] = [
       'visible' => [
         ':input[name="options[value][preset]"]' => ['value' => 'custom'],
       ],
     ];
-    
+
     $form['value']['min']['#states'] = [
       'visible' => [
         ':input[name="options[value][preset]"]' => ['value' => 'custom'],
       ],
     ];
-    
+
     $form['value']['max']['#states'] = [
       'visible' => [
         ':input[name="options[value][preset]"]' => ['value' => 'custom'],
@@ -67,7 +67,7 @@ class ComponentDate extends Date {
    */
   public function buildExposeForm(&$form, FormStateInterface $form_state) {
     parent::buildExposeForm($form, $form_state);
-    
+
     $form['expose']['use_presets'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Provide preset date options'),
@@ -88,9 +88,9 @@ class ComponentDate extends Date {
     if (empty($this->options['exposed'])) {
       return;
     }
-    
+
     $identifier = $this->options['expose']['identifier'];
-    
+
     if ($this->options['expose']['use_presets']) {
       $form[$identifier . '_preset'] = [
         '#type' => 'select',
@@ -102,7 +102,7 @@ class ComponentDate extends Date {
           'data-date-filter' => $identifier,
         ],
       ];
-      
+
       // Add custom date range fields (hidden by default).
       $form[$identifier . '_custom'] = [
         '#type' => 'fieldset',
@@ -112,12 +112,12 @@ class ComponentDate extends Date {
           'style' => 'display:none;',
         ],
       ];
-      
+
       $form[$identifier . '_custom']['from'] = [
         '#type' => 'date',
         '#title' => $this->t('From'),
       ];
-      
+
       $form[$identifier . '_custom']['to'] = [
         '#type' => 'date',
         '#title' => $this->t('To'),
@@ -135,13 +135,13 @@ class ComponentDate extends Date {
     if (empty($this->options['exposed'])) {
       return TRUE;
     }
-    
+
     $identifier = $this->options['expose']['identifier'];
-    
+
     // Handle preset selection.
     if (isset($input[$identifier . '_preset'])) {
       $preset = $input[$identifier . '_preset'];
-      
+
       if ($preset && $preset !== 'custom') {
         $range = $this->getPresetDateRange($preset);
         if ($range) {
@@ -167,7 +167,7 @@ class ComponentDate extends Date {
         }
       }
     }
-    
+
     return parent::acceptExposedInput($input);
   }
 
@@ -231,27 +231,27 @@ class ComponentDate extends Date {
   protected function getPresetDateRange($preset) {
     $now = new \DateTime();
     $range = ['min' => NULL, 'max' => NULL];
-    
+
     switch ($preset) {
       case 'today':
         $range['min'] = $now->format('Y-m-d 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'yesterday':
         $yesterday = clone $now;
         $yesterday->modify('-1 day');
         $range['min'] = $yesterday->format('Y-m-d 00:00:00');
         $range['max'] = $yesterday->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'this_week':
         $start_of_week = clone $now;
         $start_of_week->modify('this week monday');
         $range['min'] = $start_of_week->format('Y-m-d 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'last_week':
         $start_of_last_week = clone $now;
         $start_of_last_week->modify('last week monday');
@@ -260,12 +260,12 @@ class ComponentDate extends Date {
         $range['min'] = $start_of_last_week->format('Y-m-d 00:00:00');
         $range['max'] = $end_of_last_week->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'this_month':
         $range['min'] = $now->format('Y-m-01 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'last_month':
         $first_of_last_month = clone $now;
         $first_of_last_month->modify('first day of last month');
@@ -274,43 +274,43 @@ class ComponentDate extends Date {
         $range['min'] = $first_of_last_month->format('Y-m-d 00:00:00');
         $range['max'] = $last_of_last_month->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'last_7_days':
         $seven_days_ago = clone $now;
         $seven_days_ago->modify('-7 days');
         $range['min'] = $seven_days_ago->format('Y-m-d 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'last_30_days':
         $thirty_days_ago = clone $now;
         $thirty_days_ago->modify('-30 days');
         $range['min'] = $thirty_days_ago->format('Y-m-d 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'last_90_days':
         $ninety_days_ago = clone $now;
         $ninety_days_ago->modify('-90 days');
         $range['min'] = $ninety_days_ago->format('Y-m-d 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'this_year':
         $range['min'] = $now->format('Y-01-01 00:00:00');
         $range['max'] = $now->format('Y-m-d 23:59:59');
         break;
-      
+
       case 'last_year':
         $last_year = ((int) $now->format('Y')) - 1;
         $range['min'] = $last_year . '-01-01 00:00:00';
         $range['max'] = $last_year . '-12-31 23:59:59';
         break;
-      
+
       default:
         return NULL;
     }
-    
+
     return $range;
   }
 
@@ -321,7 +321,7 @@ class ComponentDate extends Date {
     if (!empty($this->options['exposed'])) {
       return $this->t('exposed');
     }
-    
+
     if (!empty($this->options['value']['preset']) && $this->options['value']['preset'] !== 'custom') {
       $presets = $this->getPresetOptions();
       $preset = $this->options['value']['preset'];
@@ -329,7 +329,7 @@ class ComponentDate extends Date {
         return $presets[$preset];
       }
     }
-    
+
     return parent::adminSummary();
   }
 

@@ -8,7 +8,6 @@ use Drupal\rest\Plugin\ResourceBase;
 use Drupal\component_entity\Entity\ComponentEntity;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 /**
@@ -53,7 +52,7 @@ class ComponentBulkResource extends ResourceBase {
     $plugin_definition,
     array $serializer_formats,
     LoggerInterface $logger,
-    EntityTypeManagerInterface $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $serializer_formats, $logger);
     $this->entityTypeManager = $entity_type_manager;
@@ -104,19 +103,19 @@ class ComponentBulkResource extends ResourceBase {
     switch ($operation) {
       case 'create':
         return $this->bulkCreate($components);
-      
+
       case 'update':
         return $this->bulkUpdate($components);
-      
+
       case 'delete':
         return $this->bulkDelete($components);
-      
+
       case 'publish':
         return $this->bulkPublish($components);
-      
+
       case 'unpublish':
         return $this->bulkUnpublish($components);
-      
+
       default:
         throw new BadRequestHttpException('Invalid operation type.');
     }
@@ -155,7 +154,7 @@ class ComponentBulkResource extends ResourceBase {
 
         // Create the component entity.
         $component = ComponentEntity::create($component_data);
-        
+
         // Validate the entity.
         $violations = $component->validate();
         if ($violations->count() > 0) {
@@ -168,7 +167,7 @@ class ComponentBulkResource extends ResourceBase {
 
         // Save the component.
         $component->save();
-        
+
         $results['success'][] = [
           'index' => $index,
           'id' => $component->id(),
@@ -244,7 +243,7 @@ class ComponentBulkResource extends ResourceBase {
 
         // Save the component.
         $component->save();
-        
+
         $results['success'][] = [
           'index' => $index,
           'id' => $component->id(),
@@ -299,7 +298,7 @@ class ComponentBulkResource extends ResourceBase {
 
         // Delete the component.
         $component->delete();
-        
+
         $results['success'][] = [
           'index' => $index,
           'id' => $component_id,
@@ -385,7 +384,7 @@ class ComponentBulkResource extends ResourceBase {
         // Update status.
         $component->setPublished($status);
         $component->save();
-        
+
         $results['success'][] = [
           'index' => $index,
           'id' => $component_id,

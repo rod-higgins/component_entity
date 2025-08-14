@@ -7,7 +7,6 @@
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\field\Entity\FieldConfig;
-use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
@@ -64,15 +63,15 @@ function component_entity_entity_view(array &$build, EntityInterface $entity, En
   if ($entity->getEntityTypeId() === 'component') {
     // Add cache contexts for render method.
     $build['#cache']['contexts'][] = 'component_render_method';
-    
+
     // Attach React library if needed.
     if ($entity->getRenderMethod() === 'react') {
       $build['#attached']['library'][] = 'component_entity/react-renderer';
-      
+
       // Get component bundle to attach specific component library.
       $bundle = $entity->bundle();
       $library = "component_entity/component.$bundle";
-      
+
       // Check if component library exists.
       $library_discovery = \Drupal::service('library.discovery');
       $libraries = $library_discovery->getLibrariesByExtension('component_entity');
@@ -99,12 +98,12 @@ function component_entity_entity_type_build(array &$entity_types) {
 function component_entity_form_component_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   // Add render method selection to the form.
   $entity = $form_state->getFormObject()->getEntity();
-  
+
   // Check if both render methods are available for this component type.
   $component_type = \Drupal::entityTypeManager()
     ->getStorage('component_type')
     ->load($entity->bundle());
-  
+
   if ($component_type && $component_type->hasDualRenderSupport()) {
     $form['render_settings'] = [
       '#type' => 'details',
@@ -113,7 +112,7 @@ function component_entity_form_component_form_alter(&$form, FormStateInterface $
       '#weight' => 100,
       '#open' => TRUE,
     ];
-    
+
     $form['render_settings']['render_method'] = [
       '#type' => 'radios',
       '#title' => t('Render method'),
@@ -124,7 +123,7 @@ function component_entity_form_component_form_alter(&$form, FormStateInterface $
       '#default_value' => $entity->getRenderMethod() ?? 'twig',
       '#description' => t('Choose how this component should be rendered.'),
     ];
-    
+
     // React-specific settings.
     $form['render_settings']['react_settings'] = [
       '#type' => 'container',
@@ -134,9 +133,9 @@ function component_entity_form_component_form_alter(&$form, FormStateInterface $
         ],
       ],
     ];
-    
+
     $react_config = $entity->getReactConfig();
-    
+
     $form['render_settings']['react_settings']['hydration'] = [
       '#type' => 'select',
       '#title' => t('Hydration method'),
@@ -148,21 +147,21 @@ function component_entity_form_component_form_alter(&$form, FormStateInterface $
       '#default_value' => $react_config['hydration'] ?? 'full',
       '#description' => t('Controls how React components are initialized on the client.'),
     ];
-    
+
     $form['render_settings']['react_settings']['progressive'] = [
       '#type' => 'checkbox',
       '#title' => t('Progressive enhancement'),
       '#default_value' => $react_config['progressive'] ?? FALSE,
       '#description' => t('Render with Twig first, then enhance with React.'),
     ];
-    
+
     $form['render_settings']['react_settings']['lazy'] = [
       '#type' => 'checkbox',
       '#title' => t('Lazy load component'),
       '#default_value' => $react_config['lazy'] ?? FALSE,
       '#description' => t('Load React component only when needed.'),
     ];
-    
+
     // Add submit handler to process React config.
     $form['actions']['submit']['#submit'][] = 'component_entity_form_component_submit';
   }
@@ -173,14 +172,14 @@ function component_entity_form_component_form_alter(&$form, FormStateInterface $
  */
 function component_entity_form_component_submit($form, FormStateInterface $form_state) {
   $entity = $form_state->getFormObject()->getEntity();
-  
+
   // Build React config from form values.
   $react_config = [
     'hydration' => $form_state->getValue('hydration', 'full'),
     'progressive' => $form_state->getValue('progressive', FALSE),
     'lazy' => $form_state->getValue('lazy', FALSE),
   ];
-  
+
   $entity->set('react_config', $react_config);
   $entity->save();
 }
@@ -190,26 +189,26 @@ function component_entity_form_component_submit($form, FormStateInterface $form_
  */
 function component_entity_library_info_build() {
   $libraries = [];
-  
+
   // Discover all component JavaScript files.
   $module_path = \Drupal::service('extension.list.module')->getPath('component_entity');
   $components_path = $module_path . '/components';
-  
+
   if (is_dir($components_path)) {
     $component_dirs = scandir($components_path);
-    
+
     foreach ($component_dirs as $component_dir) {
       if ($component_dir[0] === '.') {
         continue;
       }
-      
+
       $component_path = $components_path . '/' . $component_dir;
-      
+
       if (is_dir($component_path)) {
         // Check for compiled JS file.
         $js_file = '/dist/js/' . $component_dir . '.component.js';
         $js_path = $module_path . $js_file;
-        
+
         if (file_exists($js_path)) {
           $libraries['component.' . $component_dir] = [
             'version' => '1.x',
@@ -221,7 +220,7 @@ function component_entity_library_info_build() {
             ],
           ];
         }
-        
+
         // Check for component CSS.
         $css_file = $component_path . '/' . $component_dir . '.css';
         if (file_exists($css_file)) {
@@ -232,7 +231,7 @@ function component_entity_library_info_build() {
       }
     }
   }
-  
+
   return $libraries;
 }
 
@@ -268,17 +267,17 @@ function component_entity_entity_presave(EntityInterface $entity) {
 function template_preprocess_component_entity(array &$variables) {
   $variables['component'] = $variables['elements']['#component'];
   $variables['view_mode'] = $variables['elements']['#view_mode'];
-  
+
   // Create attribute object.
   $variables['attributes'] = $variables['elements']['#attributes'] ?? [];
   $variables['attributes']['class'][] = 'component';
   $variables['attributes']['class'][] = 'component--type-' . $variables['component']->bundle();
   $variables['attributes']['class'][] = 'component--view-mode-' . $variables['view_mode'];
-  
+
   // Add render method class.
   $render_method = $variables['component']->getRenderMethod();
   $variables['attributes']['class'][] = 'component--render-' . $render_method;
-  
+
   // Helpful $content variable for templates.
   $variables['content'] = [];
   foreach (Element::children($variables['elements']) as $key) {
@@ -317,7 +316,7 @@ function component_entity_field_config_insert(FieldConfig $field) {
     $bundle = $field->getTargetBundle();
     $component_type_storage = \Drupal::entityTypeManager()->getStorage('component_type');
     $component_type = $component_type_storage->load($bundle);
-    
+
     if ($component_type && $component_type->get('auto_sync')) {
       // Trigger SDC file update when new field is added.
       \Drupal::service('component_entity.bidirectional_sync')->handleFieldAdded($field, $component_type);
@@ -334,7 +333,7 @@ function component_entity_field_config_update(FieldConfig $field) {
     $bundle = $field->getTargetBundle();
     $component_type_storage = \Drupal::entityTypeManager()->getStorage('component_type');
     $component_type = $component_type_storage->load($bundle);
-    
+
     if ($component_type && $component_type->get('auto_sync')) {
       // Trigger SDC file update when field is modified.
       \Drupal::service('component_entity.bidirectional_sync')->handleFieldUpdated($field, $component_type);
@@ -351,7 +350,7 @@ function component_entity_field_config_delete(FieldConfig $field) {
     $bundle = $field->getTargetBundle();
     $component_type_storage = \Drupal::entityTypeManager()->getStorage('component_type');
     $component_type = $component_type_storage->load($bundle);
-    
+
     if ($component_type && $component_type->get('auto_sync')) {
       // Trigger SDC file update when field is deleted.
       \Drupal::service('component_entity.bidirectional_sync')->handleFieldDeleted($field, $component_type);
@@ -365,16 +364,16 @@ function component_entity_field_config_delete(FieldConfig $field) {
 function component_entity_form_field_ui_field_add_form_alter(&$form, $form_state, $form_id) {
   $entity_type = $form_state->get('entity_type_id');
   $bundle = $form_state->get('bundle');
-  
+
   if ($entity_type === 'component') {
     // Add submit handler to trigger sync after field addition.
     $form['#submit'][] = 'component_entity_field_ui_add_submit';
-    
+
     // Add warning about bi-directional sync.
     $component_type = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->load($bundle);
-    
+
     if ($component_type && $component_type->get('auto_sync')) {
       \Drupal::messenger()->addWarning(t(
         'Auto-sync is enabled for this component type. Adding this field will automatically update the SDC component files.'
@@ -389,16 +388,16 @@ function component_entity_form_field_ui_field_add_form_alter(&$form, $form_state
 function component_entity_field_ui_add_submit($form, $form_state) {
   $entity_type = $form_state->get('entity_type_id');
   $bundle = $form_state->get('bundle');
-  
+
   if ($entity_type === 'component') {
     // Clear caches to ensure the new field is recognized.
     \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
-    
+
     // Trigger a sync check.
     $component_type = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->load($bundle);
-    
+
     if ($component_type) {
       \Drupal::service('component_entity.bidirectional_sync')
         ->checkAndSyncComponentType($component_type);
@@ -411,7 +410,7 @@ function component_entity_field_ui_add_submit($form, $form_state) {
  */
 function component_entity_form_field_ui_field_edit_form_alter(&$form, $form_state, $form_id) {
   $field_config = $form_state->getFormObject()->getEntity();
-  
+
   if ($field_config->getTargetEntityTypeId() === 'component') {
     // Add metadata fields for SDC mapping.
     $form['sdc_settings'] = [
@@ -420,7 +419,7 @@ function component_entity_form_field_ui_field_edit_form_alter(&$form, $form_stat
       '#open' => FALSE,
       '#weight' => 10,
     ];
-    
+
     $form['sdc_settings']['sdc_prop_type'] = [
       '#type' => 'select',
       '#title' => t('SDC Property Type'),
@@ -434,28 +433,28 @@ function component_entity_form_field_ui_field_edit_form_alter(&$form, $form_stat
       '#default_value' => $field_config->getThirdPartySetting('component_entity', 'sdc_prop_type', 'string'),
       '#description' => t('The JavaScript type for this property in the SDC component.'),
     ];
-    
+
     $form['sdc_settings']['sdc_required'] = [
       '#type' => 'checkbox',
       '#title' => t('Required in SDC'),
       '#default_value' => $field_config->getThirdPartySetting('component_entity', 'sdc_required', FALSE),
       '#description' => t('Whether this property is required in the SDC component schema.'),
     ];
-    
+
     $form['sdc_settings']['sdc_default'] = [
       '#type' => 'textfield',
       '#title' => t('SDC Default Value'),
       '#default_value' => $field_config->getThirdPartySetting('component_entity', 'sdc_default', ''),
       '#description' => t('Default value for this property in the SDC component.'),
     ];
-    
+
     $form['sdc_settings']['react_prop_name'] = [
       '#type' => 'textfield',
       '#title' => t('React Prop Name'),
       '#default_value' => $field_config->getThirdPartySetting('component_entity', 'react_prop_name', ''),
       '#description' => t('Override the prop name for React components (leave empty to use field name).'),
     ];
-    
+
     // Add submit handler.
     $form['actions']['submit']['#submit'][] = 'component_entity_field_ui_edit_submit';
   }
@@ -466,16 +465,16 @@ function component_entity_form_field_ui_field_edit_form_alter(&$form, $form_stat
  */
 function component_entity_field_ui_edit_submit($form, $form_state) {
   $field_config = $form_state->getFormObject()->getEntity();
-  
+
   // Save third-party settings.
-  $field_config->setThirdPartySetting('component_entity', 'sdc_prop_type', 
+  $field_config->setThirdPartySetting('component_entity', 'sdc_prop_type',
     $form_state->getValue('sdc_prop_type'));
-  $field_config->setThirdPartySetting('component_entity', 'sdc_required', 
+  $field_config->setThirdPartySetting('component_entity', 'sdc_required',
     $form_state->getValue('sdc_required'));
-  $field_config->setThirdPartySetting('component_entity', 'sdc_default', 
+  $field_config->setThirdPartySetting('component_entity', 'sdc_default',
     $form_state->getValue('sdc_default'));
-  $field_config->setThirdPartySetting('component_entity', 'react_prop_name', 
+  $field_config->setThirdPartySetting('component_entity', 'react_prop_name',
     $form_state->getValue('react_prop_name'));
-  
+
   $field_config->save();
 }

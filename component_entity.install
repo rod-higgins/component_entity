@@ -13,7 +13,7 @@ use Drupal\Core\Field\BaseFieldDefinition;
 function component_entity_install() {
   // Initial sync of SDC components.
   \Drupal::service('component_entity.sync')->syncComponents();
-  
+
   \Drupal::messenger()->addStatus(t('Component Entity module has been installed. SDC components have been synchronized.'));
 }
 
@@ -23,12 +23,12 @@ function component_entity_install() {
 function component_entity_uninstall() {
   // Clean up any remaining component configuration.
   $config_factory = \Drupal::configFactory();
-  
+
   // Delete all component type configurations.
   foreach ($config_factory->listAll('component_entity.component_type.') as $config_name) {
     $config_factory->getEditable($config_name)->delete();
   }
-  
+
   \Drupal::messenger()->addStatus(t('Component Entity module has been uninstalled.'));
 }
 
@@ -37,11 +37,11 @@ function component_entity_uninstall() {
  */
 function component_entity_requirements($phase) {
   $requirements = [];
-  
+
   if ($phase === 'runtime') {
     // Check if SDC is enabled.
     $module_handler = \Drupal::moduleHandler();
-    
+
     if (!$module_handler->moduleExists('sdc')) {
       $requirements['component_entity_sdc'] = [
         'title' => t('Component Entity: SDC module'),
@@ -57,10 +57,10 @@ function component_entity_requirements($phase) {
         'severity' => REQUIREMENT_OK,
       ];
     }
-    
+
     // Check for React libraries.
     $library_path = \Drupal::service('extension.list.module')->getPath('component_entity') . '/node_modules';
-    
+
     if (!file_exists($library_path . '/react') || !file_exists($library_path . '/react-dom')) {
       $requirements['component_entity_react'] = [
         'title' => t('Component Entity: React libraries'),
@@ -76,11 +76,11 @@ function component_entity_requirements($phase) {
         'severity' => REQUIREMENT_OK,
       ];
     }
-    
+
     // Check for component sync status.
     $sync_service = \Drupal::service('component_entity.sync');
     $sync_status = $sync_service->getSyncStatus();
-    
+
     if (!empty($sync_status['errors'])) {
       $requirements['component_entity_sync'] = [
         'title' => t('Component Entity: Sync status'),
@@ -97,7 +97,7 @@ function component_entity_requirements($phase) {
       ];
     }
   }
-  
+
   return $requirements;
 }
 
@@ -116,16 +116,16 @@ function component_entity_update_10001() {
     ])
     ->setDefaultValue('twig')
     ->setRevisionable(TRUE);
-  
+
   \Drupal::entityDefinitionUpdateManager()
     ->installFieldStorageDefinition('render_method', 'component', 'component_entity', $field_storage_definition);
-  
+
   $field_storage_definition = BaseFieldDefinition::create('json')
     ->setLabel(t('React Configuration'))
     ->setDescription(t('React-specific rendering configuration'))
     ->setDefaultValue(['hydration' => 'full'])
     ->setRevisionable(TRUE);
-  
+
   \Drupal::entityDefinitionUpdateManager()
     ->installFieldStorageDefinition('react_config', 'component', 'component_entity', $field_storage_definition);
 }
@@ -137,7 +137,7 @@ function component_entity_update_10002() {
   $component_types = \Drupal::entityTypeManager()
     ->getStorage('component_type')
     ->loadMultiple();
-  
+
   foreach ($component_types as $component_type) {
     // Set default rendering configuration.
     $component_type->set('rendering', [

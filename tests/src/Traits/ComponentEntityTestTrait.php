@@ -152,7 +152,7 @@ trait ComponentEntityTestTrait {
    */
   protected function createMultipleTestComponents($count = 5, $bundle = 'test_component', array $base_values = []) {
     $components = [];
-    
+
     for ($i = 0; $i < $count; $i++) {
       $values = $base_values + [
         'name' => 'Test Component ' . ($i + 1),
@@ -179,7 +179,7 @@ trait ComponentEntityTestTrait {
     foreach ($operations as $operation) {
       $access = $component->access($operation, $account);
       $expected_access = $expected[$operation] ?? FALSE;
-      
+
       $this->assertEquals(
         $expected_access,
         $access,
@@ -205,7 +205,7 @@ trait ComponentEntityTestTrait {
    */
   protected function createComponentUser(array $permissions = [], $bundle = NULL) {
     $default_permissions = ['view published component entities'];
-    
+
     if ($bundle) {
       $bundle_permissions = [
         "create $bundle component entities",
@@ -213,7 +213,8 @@ trait ComponentEntityTestTrait {
         "delete own $bundle component entities",
       ];
       $permissions = array_merge($default_permissions, $bundle_permissions, $permissions);
-    } else {
+    }
+    else {
       $permissions = array_merge($default_permissions, $permissions);
     }
 

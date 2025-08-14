@@ -5,7 +5,6 @@ namespace Drupal\component_entity\Plugin\Field\FieldWidget;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\StringTranslation\TranslatableMarkup;
 
 /**
  * Plugin implementation of the 'json_textarea' widget.
@@ -133,7 +132,7 @@ class JsonTextareaWidget extends WidgetBase {
    * {@inheritdoc}
    */
   public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
-    $value = isset($items[$delta]->value) ? $items[$delta]->value : '';
+    $value = $items[$delta]->value ?? '';
 
     // Pretty print the JSON if it's valid.
     if (!empty($value)) {
@@ -157,7 +156,7 @@ class JsonTextareaWidget extends WidgetBase {
     // Add wrapper for enhanced functionality.
     if ($this->getSetting('show_format_buttons') || $this->getSetting('code_mirror')) {
       $wrapper_id = 'json-widget-' . $items->getName() . '-' . $delta;
-      
+
       $element['value']['#prefix'] = '<div id="' . $wrapper_id . '" class="json-widget-wrapper">';
       $element['value']['#suffix'] = '</div>';
 
@@ -180,7 +179,7 @@ class JsonTextareaWidget extends WidgetBase {
     // Attach library for enhanced functionality.
     if ($this->getSetting('syntax_highlighting') || $this->getSetting('code_mirror') || $this->getSetting('show_format_buttons')) {
       $element['#attached']['library'][] = 'component_entity/json-widget';
-      
+
       if ($this->getSetting('code_mirror')) {
         $element['#attached']['library'][] = 'component_entity/codemirror';
         $element['value']['#attributes']['data-codemirror'] = 'json';
@@ -213,25 +212,25 @@ class JsonTextareaWidget extends WidgetBase {
    */
   protected function buildFormatButtons($wrapper_id) {
     $buttons = '<div class="json-format-buttons">';
-    
+
     $buttons .= '<button type="button" class="button button--small json-format-btn" data-target="' . $wrapper_id . '">';
     $buttons .= $this->t('Format JSON');
     $buttons .= '</button>';
-    
+
     $buttons .= '<button type="button" class="button button--small json-minify-btn" data-target="' . $wrapper_id . '">';
     $buttons .= $this->t('Minify');
     $buttons .= '</button>';
-    
+
     $buttons .= '<button type="button" class="button button--small json-validate-btn" data-target="' . $wrapper_id . '">';
     $buttons .= $this->t('Validate');
     $buttons .= '</button>';
-    
+
     $buttons .= '<button type="button" class="button button--small json-clear-btn" data-target="' . $wrapper_id . '">';
     $buttons .= $this->t('Clear');
     $buttons .= '</button>';
-    
+
     $buttons .= '</div>';
-    
+
     return $buttons;
   }
 
@@ -249,25 +248,25 @@ class JsonTextareaWidget extends WidgetBase {
   public function validateJsonCallback(array &$form, FormStateInterface $form_state) {
     $triggering_element = $form_state->getTriggeringElement();
     $element = $triggering_element;
-    
+
     // Validate the JSON.
     $value = $triggering_element['#value'];
     if (!empty($value)) {
       $decoded = json_decode($value, TRUE);
       if (json_last_error() !== JSON_ERROR_NONE) {
         $element['#attributes']['class'][] = 'error';
-        $element['#suffix'] = '<div class="json-validation-error">' . 
-          $this->t('Invalid JSON: @error', ['@error' => json_last_error_msg()]) . 
+        $element['#suffix'] = '<div class="json-validation-error">' .
+          $this->t('Invalid JSON: @error', ['@error' => json_last_error_msg()]) .
           '</div>';
       }
       else {
         $element['#attributes']['class'][] = 'valid';
-        $element['#suffix'] = '<div class="json-validation-success">' . 
-          $this->t('Valid JSON') . 
+        $element['#suffix'] = '<div class="json-validation-success">' .
+          $this->t('Valid JSON') .
           '</div>';
       }
     }
-    
+
     return $element;
   }
 
@@ -289,7 +288,7 @@ class JsonTextareaWidget extends WidgetBase {
         }
       }
     }
-    
+
     return $values;
   }
 

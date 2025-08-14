@@ -87,7 +87,7 @@ class InvalidComponentException extends \Exception {
     $field_name = NULL,
     array $details = [],
     $code = 0,
-    \Throwable $previous = NULL
+    ?\Throwable $previous = NULL,
   ) {
     parent::__construct($message, $code, $previous);
     $this->component = $component;
@@ -113,7 +113,7 @@ class InvalidComponentException extends \Exception {
       $component->label() ?? $component->id(),
       implode(', ', $missing_fields)
     );
-    
+
     return new static(
       $message,
       $component,
@@ -145,7 +145,7 @@ class InvalidComponentException extends \Exception {
       $component->label() ?? $component->id(),
       $reason
     );
-    
+
     return new static(
       $message,
       $component,
@@ -178,7 +178,7 @@ class InvalidComponentException extends \Exception {
       $expected_type,
       $actual_type
     );
-    
+
     return new static(
       $message,
       $component,
@@ -211,7 +211,7 @@ class InvalidComponentException extends \Exception {
       $max_cardinality,
       $actual_count
     );
-    
+
     return new static(
       $message,
       $component,
@@ -241,7 +241,7 @@ class InvalidComponentException extends \Exception {
       $component->label() ?? $component->id(),
       implode(', ', $allowed_methods)
     );
-    
+
     return new static(
       $message,
       $component,
@@ -268,7 +268,7 @@ class InvalidComponentException extends \Exception {
       $sdc_id,
       $component->label() ?? $component->id()
     );
-    
+
     return new static(
       $message,
       $component,
@@ -294,13 +294,13 @@ class InvalidComponentException extends \Exception {
     foreach ($invalid_props as $prop => $reason) {
       $prop_messages[] = sprintf('%s: %s', $prop, $reason);
     }
-    
+
     $message = sprintf(
       'Invalid props for component "%s": %s',
       $component->label() ?? $component->id(),
       implode('; ', $prop_messages)
     );
-    
+
     return new static(
       $message,
       $component,
@@ -326,13 +326,13 @@ class InvalidComponentException extends \Exception {
     foreach ($invalid_slots as $slot => $reason) {
       $slot_messages[] = sprintf('%s: %s', $slot, $reason);
     }
-    
+
     $message = sprintf(
       'Invalid slots for component "%s": %s',
       $component->label() ?? $component->id(),
       implode('; ', $slot_messages)
     );
-    
+
     return new static(
       $message,
       $component,
@@ -359,7 +359,7 @@ class InvalidComponentException extends \Exception {
       $component->label() ?? $component->id(),
       implode('; ', $schema_errors)
     );
-    
+
     return new static(
       $message,
       $component,
@@ -386,7 +386,7 @@ class InvalidComponentException extends \Exception {
       $component->label() ?? $component->id(),
       implode(' -> ', $reference_chain)
     );
-    
+
     return new static(
       $message,
       $component,
@@ -485,34 +485,34 @@ class InvalidComponentException extends \Exception {
     switch ($this->errorType) {
       case self::MISSING_REQUIRED_FIELD:
         return t('Please fill in all required fields.');
-        
+
       case self::INVALID_FIELD_VALUE:
         return t('The value entered for @field is invalid.', ['@field' => $this->fieldName]);
-        
+
       case self::INVALID_FIELD_TYPE:
         return t('The data type for @field is incorrect.', ['@field' => $this->fieldName]);
-        
+
       case self::FIELD_CARDINALITY_EXCEEDED:
         return t('Too many values provided for @field.', ['@field' => $this->fieldName]);
-        
+
       case self::INVALID_RENDER_METHOD:
         return t('The selected render method is not available for this component.');
-        
+
       case self::MISSING_SDC_COMPONENT:
         return t('The component template is missing or unavailable.');
-        
+
       case self::INVALID_PROPS:
         return t('The component properties contain invalid values.');
-        
+
       case self::INVALID_SLOTS:
         return t('The component slots contain invalid content.');
-        
+
       case self::SCHEMA_VALIDATION_FAILED:
         return t('The component data does not match the expected format.');
-        
+
       case self::CIRCULAR_REFERENCE:
         return t('This component references itself, creating an infinite loop.');
-        
+
       default:
         return t('The component contains invalid data.');
     }
@@ -526,19 +526,20 @@ class InvalidComponentException extends \Exception {
    */
   public function getValidationMessages() {
     $messages = [];
-    
+
     // Add main message.
     $messages[] = $this->getMessage();
-    
+
     // Add violation messages.
     foreach ($this->violations as $violation) {
       if (is_object($violation) && method_exists($violation, 'getMessage')) {
         $messages[] = $violation->getMessage();
-      } else {
+      }
+      else {
         $messages[] = (string) $violation;
       }
     }
-    
+
     return array_unique($messages);
   }
 
@@ -557,7 +558,7 @@ class InvalidComponentException extends \Exception {
       'details' => $this->details,
       'user_message' => $this->getUserMessage(),
     ];
-    
+
     if ($this->component) {
       $data['component'] = [
         'id' => $this->component->id(),
@@ -565,7 +566,7 @@ class InvalidComponentException extends \Exception {
         'label' => $this->component->label(),
       ];
     }
-    
+
     return $data;
   }
 

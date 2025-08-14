@@ -4,7 +4,6 @@ namespace Drupal\component_entity\Controller;
 
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
@@ -52,7 +51,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
     $header['rendering'] = $this->t('Rendering');
     $header['count'] = $this->t('Components');
     $header['fields'] = $this->t('Fields');
-    
+
     return $header + parent::buildHeader();
   }
 
@@ -63,7 +62,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
     /** @var \Drupal\component_entity\Entity\ComponentTypeInterface $entity */
     $row['label'] = $entity->label();
     $row['id'] = $entity->id();
-    
+
     // SDC component ID with sync status.
     $sdc_id = $entity->get('sdc_id');
     if ($sdc_id) {
@@ -115,24 +114,24 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     // Rendering methods.
     $rendering = $entity->get('rendering') ?? [];
     $methods = [];
-    
+
     if (!empty($rendering['twig_enabled'])) {
       $methods[] = '<span class="render-method-badge render-method-badge--twig">Twig</span>';
     }
     if (!empty($rendering['react_enabled'])) {
       $methods[] = '<span class="render-method-badge render-method-badge--react">React</span>';
     }
-    
+
     $row['rendering'] = [
       'data' => [
         '#markup' => !empty($methods) ? implode(' ', $methods) : '<em>' . $this->t('None') . '</em>',
       ],
     ];
-    
+
     // Component count.
     $count = $this->entityTypeManager
       ->getStorage('component')
@@ -141,7 +140,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
       ->accessCheck(FALSE)
       ->count()
       ->execute();
-    
+
     if ($count > 0) {
       $row['count'] = Link::createFromRoute(
         $count,
@@ -153,18 +152,18 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
     else {
       $row['count'] = 0;
     }
-    
+
     // Field count with link to manage fields.
     $fields = \Drupal::service('entity_field.manager')
       ->getFieldDefinitions('component', $entity->id());
-    
+
     $field_count = 0;
     foreach ($fields as $field_name => $field) {
       if (strpos($field_name, 'field_') === 0) {
         $field_count++;
       }
     }
-    
+
     if (\Drupal::currentUser()->hasPermission('administer component types')) {
       $row['fields'] = Link::createFromRoute(
         $this->formatPlural($field_count, '1 field', '@count fields'),
@@ -175,7 +174,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
     else {
       $row['fields'] = $this->formatPlural($field_count, '1 field', '@count fields');
     }
-    
+
     return $row + parent::buildRow($entity);
   }
 
@@ -184,16 +183,16 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
    */
   public function render() {
     $build = parent::render();
-    
+
     // Add admin library for styling.
     $build['#attached']['library'][] = 'component_entity/admin';
-    
+
     // Add sync status summary.
     $build['summary'] = $this->buildSyncSummary();
-    
+
     // Add action buttons.
     $build['actions'] = $this->buildActions();
-    
+
     // Add help text if no component types exist.
     if (empty($this->load())) {
       $build['empty'] = [
@@ -207,7 +206,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     return $build;
   }
 
@@ -220,18 +219,18 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
   protected function buildSyncSummary() {
     $sync_service = \Drupal::service('component_entity.sync');
     $status = $sync_service->getSyncStatus();
-    
+
     $summary = [
       '#type' => 'details',
       '#title' => $this->t('Sync Status'),
       '#open' => TRUE,
       '#attributes' => ['class' => ['component-sync-summary']],
     ];
-    
+
     // SDC components count.
     $sdc_components = $this->componentManager->getAllComponents();
     $sdc_count = count($sdc_components);
-    
+
     $summary['stats'] = [
       '#theme' => 'item_list',
       '#items' => [
@@ -239,7 +238,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         $this->t('@count component types synced', ['@count' => $status['synced_count']]),
       ],
     ];
-    
+
     // Last sync time.
     if ($status['last_sync']) {
       $summary['last_sync'] = [
@@ -248,7 +247,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ]),
       ];
     }
-    
+
     // Sync needed indicator.
     if ($sdc_count > $status['synced_count']) {
       $summary['sync_needed'] = [
@@ -261,7 +260,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     return $summary;
   }
 
@@ -276,9 +275,9 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
       '#type' => 'container',
       '#attributes' => ['class' => ['component-type-actions']],
     ];
-    
+
     $current_user = \Drupal::currentUser();
-    
+
     // Sync button.
     if ($current_user->hasPermission('sync sdc components')) {
       $actions['sync'] = [
@@ -290,7 +289,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     // Add component type button.
     if ($current_user->hasPermission('administer component types')) {
       $actions['add'] = [
@@ -302,7 +301,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     // Build React components button.
     if ($current_user->hasPermission('administer component types')) {
       $actions['build'] = [
@@ -319,7 +318,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     return $actions;
   }
 
@@ -328,7 +327,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
    */
   public function getDefaultOperations(EntityInterface $entity) {
     $operations = parent::getDefaultOperations($entity);
-    
+
     // Add manage fields operation.
     if ($entity->id() && \Drupal::currentUser()->hasPermission('administer component types')) {
       $operations['manage-fields'] = [
@@ -338,7 +337,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
           'component_type' => $entity->id(),
         ]),
       ];
-      
+
       $operations['manage-form-display'] = [
         'title' => $this->t('Manage form display'),
         'weight' => 10,
@@ -346,7 +345,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
           'component_type' => $entity->id(),
         ]),
       ];
-      
+
       $operations['manage-display'] = [
         'title' => $this->t('Manage display'),
         'weight' => 15,
@@ -355,7 +354,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ]),
       ];
     }
-    
+
     // Add re-sync operation if this is an SDC-synced type.
     if ($entity->get('sdc_id') && \Drupal::currentUser()->hasPermission('sync sdc components')) {
       $operations['resync'] = [
@@ -370,7 +369,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ],
       ];
     }
-    
+
     // Add duplicate operation.
     if (\Drupal::currentUser()->hasPermission('administer component types')) {
       $operations['duplicate'] = [
@@ -381,7 +380,7 @@ class ComponentTypeListBuilder extends ConfigEntityListBuilder {
         ]),
       ];
     }
-    
+
     return $operations;
   }
 

@@ -2,6 +2,7 @@
 
 namespace Drupal\component_entity\Service;
 
+use Symfony\Component\Yaml\Yaml;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ThemeHandlerInterface;
@@ -17,37 +18,37 @@ use Drupal\component_entity\Event\FileWriteEvent;
 class FileSystemWriterService {
 
   /**
-   * @var FileSystemInterface
+   * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
-   * @var ModuleHandlerInterface
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
-   * @var ThemeHandlerInterface
+   * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
 
   /**
-   * @var ConfigFactoryInterface
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
 
   /**
-   * @var AccountProxyInterface
+   * @var \Drupal\Core\Session\AccountProxyInterface
    */
   protected $currentUser;
 
   /**
-   * @var LoggerInterface
+   * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
   /**
-   * @var EventDispatcherInterface
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
    */
   protected $eventDispatcher;
 
@@ -55,8 +56,8 @@ class FileSystemWriterService {
    * Allowed file extensions for component files.
    */
   const ALLOWED_EXTENSIONS = [
-    'yml', 'yaml', 'twig', 'html', 'js', 'jsx', 
-    'ts', 'tsx', 'css', 'scss', 'json', 'md'
+    'yml', 'yaml', 'twig', 'html', 'js', 'jsx',
+    'ts', 'tsx', 'css', 'scss', 'json', 'md',
   ];
 
   /**
@@ -88,7 +89,7 @@ class FileSystemWriterService {
     ConfigFactoryInterface $config_factory,
     AccountProxyInterface $current_user,
     LoggerInterface $logger,
-    EventDispatcherInterface $event_dispatcher
+    EventDispatcherInterface $event_dispatcher,
   ) {
     $this->fileSystem = $file_system;
     $this->moduleHandler = $module_handler;
@@ -125,7 +126,7 @@ class FileSystemWriterService {
     ];
 
     try {
-      // Step 1: Permission check
+      // Step 1: Permission check.
       if (!$this->hasWritePermission()) {
         return [
           'success' => FALSE,
@@ -133,7 +134,7 @@ class FileSystemWriterService {
         ];
       }
 
-      // Step 2: Path validation
+      // Step 2: Path validation.
       $validation = $this->validatePath($file_path);
       if (!$validation['valid']) {
         return [
@@ -142,7 +143,7 @@ class FileSystemWriterService {
         ];
       }
 
-      // Step 3: Extension check
+      // Step 3: Extension check.
       $extension = pathinfo($file_path, PATHINFO_EXTENSION);
       if (!in_array($extension, self::ALLOWED_EXTENSIONS)) {
         return [
@@ -151,7 +152,7 @@ class FileSystemWriterService {
         ];
       }
 
-      // Step 4: Content validation
+      // Step 4: Content validation.
       if ($options['validate']) {
         $content_validation = $this->validateContent($content, $extension);
         if (!$content_validation['valid']) {
@@ -162,7 +163,7 @@ class FileSystemWriterService {
         }
       }
 
-      // Step 5: Check if file exists
+      // Step 5: Check if file exists.
       if (file_exists($file_path)) {
         if (!$options['overwrite']) {
           return [
@@ -171,7 +172,7 @@ class FileSystemWriterService {
           ];
         }
 
-        // Create backup if requested
+        // Create backup if requested.
         if ($options['backup']) {
           $backup_result = $this->createBackup($file_path);
           if (!$backup_result['success']) {
@@ -180,7 +181,7 @@ class FileSystemWriterService {
         }
       }
 
-      // Step 6: Ensure directory exists
+      // Step 6: Ensure directory exists.
       $directory = dirname($file_path);
       if (!$this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)) {
         return [
@@ -189,9 +190,9 @@ class FileSystemWriterService {
         ];
       }
 
-      // Step 7: Write the file
+      // Step 7: Write the file.
       $result = file_put_contents($file_path, $content);
-      
+
       if ($result === FALSE) {
         return [
           'success' => FALSE,
@@ -199,16 +200,16 @@ class FileSystemWriterService {
         ];
       }
 
-      // Step 8: Set permissions
+      // Step 8: Set permissions.
       chmod($file_path, $options['permissions']);
 
-      // Step 9: Log the operation
+      // Step 9: Log the operation.
       $this->logger->info('File written: @path by user @uid', [
         '@path' => $file_path,
         '@uid' => $this->currentUser->id(),
       ]);
 
-      // Step 10: Dispatch event
+      // Step 10: Dispatch event.
       $event = new FileWriteEvent($file_path, $content, $options);
       $this->eventDispatcher->dispatch($event, FileWriteEvent::FILE_WRITTEN);
 
@@ -219,7 +220,8 @@ class FileSystemWriterService {
         'bytes' => $result,
       ];
 
-    } catch (\Exception $e) {
+    }
+    catch (\Exception $e) {
       $this->logger->error('Error writing file: @error', [
         '@error' => $e->getMessage(),
       ]);
@@ -243,7 +245,7 @@ class FileSystemWriterService {
    *   Result array with 'success' boolean and 'message' string.
    */
   public function deleteFile($file_path, $backup = TRUE) {
-    // Permission check
+    // Permission check.
     if (!$this->hasWritePermission()) {
       return [
         'success' => FALSE,
@@ -251,7 +253,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Path validation
+    // Path validation.
     $validation = $this->validatePath($file_path);
     if (!$validation['valid']) {
       return [
@@ -260,7 +262,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Check if file exists
+    // Check if file exists.
     if (!file_exists($file_path)) {
       return [
         'success' => FALSE,
@@ -268,7 +270,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Create backup if requested
+    // Create backup if requested.
     if ($backup) {
       $backup_result = $this->createBackup($file_path);
       if (!$backup_result['success']) {
@@ -276,7 +278,7 @@ class FileSystemWriterService {
       }
     }
 
-    // Delete the file
+    // Delete the file.
     if (unlink($file_path)) {
       $this->logger->info('File deleted: @path by user @uid', [
         '@path' => $file_path,
@@ -306,7 +308,7 @@ class FileSystemWriterService {
    */
   protected function createBackup($file_path) {
     $backup_dir = $this->getBackupDirectory();
-    
+
     if (!$this->fileSystem->prepareDirectory($backup_dir, FileSystemInterface::CREATE_DIRECTORY)) {
       return [
         'success' => FALSE,
@@ -347,7 +349,7 @@ class FileSystemWriterService {
    *   Array with 'valid' boolean and 'message' string.
    */
   protected function validatePath($file_path) {
-    // Check for directory traversal
+    // Check for directory traversal.
     if (strpos($file_path, '..') !== FALSE) {
       return [
         'valid' => FALSE,
@@ -355,13 +357,13 @@ class FileSystemWriterService {
       ];
     }
 
-    // Get real path
+    // Get real path.
     $real_path = realpath(dirname($file_path));
     if ($real_path === FALSE) {
       $real_path = dirname($file_path);
     }
 
-    // Check if path is within allowed directories
+    // Check if path is within allowed directories.
     $allowed_paths = $this->getAllowedPaths();
     $is_allowed = FALSE;
 
@@ -379,7 +381,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Check for sensitive files
+    // Check for sensitive files.
     $basename = basename($file_path);
     $sensitive_files = [
       '.htaccess', '.htpasswd', 'settings.php', 'settings.local.php',
@@ -411,7 +413,7 @@ class FileSystemWriterService {
    *   Array with 'valid' boolean and 'message' string.
    */
   protected function validateContent($content, $extension) {
-    // Check for PHP code in non-PHP files
+    // Check for PHP code in non-PHP files.
     if (!in_array($extension, ['php', 'module', 'inc'])) {
       foreach (self::DANGEROUS_PATTERNS as $pattern) {
         if (preg_match($pattern, $content)) {
@@ -423,11 +425,12 @@ class FileSystemWriterService {
       }
     }
 
-    // Validate YAML files
+    // Validate YAML files.
     if (in_array($extension, ['yml', 'yaml'])) {
       try {
-        \Symfony\Component\Yaml\Yaml::parse($content);
-      } catch (\Exception $e) {
+        Yaml::parse($content);
+      }
+      catch (\Exception $e) {
         return [
           'valid' => FALSE,
           'message' => 'Invalid YAML: ' . $e->getMessage(),
@@ -435,7 +438,7 @@ class FileSystemWriterService {
       }
     }
 
-    // Validate JSON files
+    // Validate JSON files.
     if ($extension === 'json') {
       json_decode($content);
       if (json_last_error() !== JSON_ERROR_NONE) {
@@ -446,7 +449,7 @@ class FileSystemWriterService {
       }
     }
 
-    // Check file size
+    // Check file size.
     $max_size = $this->getMaxFileSize();
     if (strlen($content) > $max_size) {
       return [
@@ -480,11 +483,11 @@ class FileSystemWriterService {
    */
   protected function getAllowedPaths() {
     $paths = [];
-    
-    // Add module paths
+
+    // Add module paths.
     $modules = $this->configFactory->get('component_entity.settings')
       ->get('allowed_modules') ?: ['component_entity'];
-    
+
     foreach ($modules as $module_name) {
       if ($this->moduleHandler->moduleExists($module_name)) {
         $module = $this->moduleHandler->getModule($module_name);
@@ -492,10 +495,10 @@ class FileSystemWriterService {
       }
     }
 
-    // Add theme paths
+    // Add theme paths.
     $themes = $this->configFactory->get('component_entity.settings')
       ->get('allowed_themes') ?: [];
-    
+
     foreach ($themes as $theme_name) {
       if ($this->themeHandler->themeExists($theme_name)) {
         $theme = $this->themeHandler->getTheme($theme_name);
@@ -503,10 +506,10 @@ class FileSystemWriterService {
       }
     }
 
-    // Add custom paths
+    // Add custom paths.
     $custom_paths = $this->configFactory->get('component_entity.settings')
       ->get('custom_paths') ?: [];
-    
+
     foreach ($custom_paths as $path) {
       if (is_dir($path)) {
         $paths[] = realpath($path);
@@ -525,11 +528,11 @@ class FileSystemWriterService {
   protected function getBackupDirectory() {
     $config = $this->configFactory->get('component_entity.settings');
     $backup_dir = $config->get('backup_directory');
-    
+
     if (!$backup_dir) {
       $backup_dir = 'private://component_backups';
     }
-    
+
     return $backup_dir;
   }
 
@@ -542,11 +545,12 @@ class FileSystemWriterService {
   protected function getMaxFileSize() {
     $config = $this->configFactory->get('component_entity.settings');
     $max_size = $config->get('max_file_size');
-    
+
     if (!$max_size) {
-      $max_size = 1048576; // 1MB default
+      // 1MB default
+      $max_size = 1048576;
     }
-    
+
     return $max_size;
   }
 
@@ -562,7 +566,7 @@ class FileSystemWriterService {
    *   Result array with 'success' boolean and 'message' string.
    */
   public function restoreFromBackup($backup_path, $restore_path) {
-    // Permission check
+    // Permission check.
     if (!$this->hasWritePermission()) {
       return [
         'success' => FALSE,
@@ -570,7 +574,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Validate backup exists
+    // Validate backup exists.
     if (!file_exists($backup_path)) {
       return [
         'success' => FALSE,
@@ -578,7 +582,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Validate restore path
+    // Validate restore path.
     $validation = $this->validatePath($restore_path);
     if (!$validation['valid']) {
       return [
@@ -587,7 +591,7 @@ class FileSystemWriterService {
       ];
     }
 
-    // Perform restore
+    // Perform restore.
     if (copy($backup_path, $restore_path)) {
       $this->logger->info('File restored from backup: @restore from @backup', [
         '@restore' => $restore_path,
@@ -619,14 +623,15 @@ class FileSystemWriterService {
     $backup_dir = $this->getBackupDirectory();
     $filename = basename($original_file);
     $pattern = $backup_dir . '/' . $filename . '.*.bak';
-    
+
     $backups = glob($pattern);
-    
+
     // Sort by modification time (newest first)
-    usort($backups, function($a, $b) {
+    usort($backups, function ($a, $b) {
       return filemtime($b) - filemtime($a);
     });
-    
+
     return $backups;
   }
+
 }

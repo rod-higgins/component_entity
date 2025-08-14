@@ -21,7 +21,7 @@ class BiDirectionalSyncEvent extends Event {
   const POST_SYNC = 'component_entity.bi_directional_sync.post';
 
   /**
-   * @var ComponentTypeInterface
+   * @var \Drupal\component_entity\Entity\ComponentTypeInterface
    */
   protected $componentType;
 
@@ -43,7 +43,7 @@ class BiDirectionalSyncEvent extends Event {
   /**
    * Constructor.
    *
-   * @param ComponentTypeInterface $component_type
+   * @param \Drupal\component_entity\Entity\ComponentTypeInterface $component_type
    *   The component type being synced.
    * @param string $operation
    *   The operation being performed (create, update, delete).
@@ -59,7 +59,7 @@ class BiDirectionalSyncEvent extends Event {
   /**
    * Gets the component type.
    *
-   * @return ComponentTypeInterface
+   * @return \Drupal\component_entity\Entity\ComponentTypeInterface
    */
   public function getComponentType() {
     return $this->componentType;
@@ -109,6 +109,7 @@ class BiDirectionalSyncEvent extends Event {
   public function isCancelled() {
     return $this->cancelled;
   }
+
 }
 
 /**
@@ -183,6 +184,7 @@ class FileWriteEvent extends Event {
   public function getOptions() {
     return $this->options;
   }
+
 }
 
 /**
@@ -232,4 +234,5 @@ class ComponentSyncEvent extends Event {
   public function get($key, $default = NULL) {
     return $this->data[$key] ?? $default;
   }
+
 }

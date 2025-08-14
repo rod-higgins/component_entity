@@ -58,7 +58,7 @@ class ComponentEntityResource extends ResourceBase {
     $plugin_definition,
     array $serializer_formats,
     LoggerInterface $logger,
-    EntityTypeManagerInterface $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $serializer_formats, $logger);
     $this->entityTypeManager = $entity_type_manager;
@@ -89,7 +89,7 @@ class ComponentEntityResource extends ResourceBase {
    *
    * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
-  public function get(ComponentEntity $component = NULL) {
+  public function get(?ComponentEntity $component = NULL) {
     if (!$component) {
       throw new NotFoundHttpException('Component entity not found.');
     }
@@ -102,7 +102,7 @@ class ComponentEntityResource extends ResourceBase {
     // Add cache metadata.
     $response = new ResourceResponse($component, 200);
     $response->addCacheableDependency($component);
-    
+
     return $response;
   }
 
@@ -117,7 +117,7 @@ class ComponentEntityResource extends ResourceBase {
    *
    * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
-  public function post(ComponentEntity $component = NULL) {
+  public function post(?ComponentEntity $component = NULL) {
     if (!$component) {
       throw new BadRequestHttpException('No component entity provided.');
     }
@@ -149,7 +149,7 @@ class ComponentEntityResource extends ResourceBase {
       // Return 201 Created with the location of the new resource.
       $url = $component->toUrl('canonical', ['absolute' => TRUE])->toString(TRUE);
       $response = new ModifiedResourceResponse($component, 201, ['Location' => $url->getGeneratedUrl()]);
-      
+
       return $response;
     }
     catch (\Exception $e) {
@@ -170,7 +170,7 @@ class ComponentEntityResource extends ResourceBase {
    *
    * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
-  public function patch(ComponentEntity $original_component = NULL, ComponentEntity $component = NULL) {
+  public function patch(?ComponentEntity $original_component = NULL, ?ComponentEntity $component = NULL) {
     if (!$original_component || !$component) {
       throw new BadRequestHttpException('Component entity not provided.');
     }
@@ -191,7 +191,7 @@ class ComponentEntityResource extends ResourceBase {
       if (in_array($field_name, ['id', 'uuid', 'vid', 'created'])) {
         continue;
       }
-      
+
       // Update field values.
       $original_component->set($field_name, $field->getValue());
     }
@@ -209,7 +209,7 @@ class ComponentEntityResource extends ResourceBase {
     try {
       $original_component->save();
       $this->logger->notice('Updated component entity %id.', ['%id' => $original_component->id()]);
-      
+
       return new ModifiedResourceResponse($original_component, 200);
     }
     catch (\Exception $e) {
@@ -228,7 +228,7 @@ class ComponentEntityResource extends ResourceBase {
    *
    * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
-  public function delete(ComponentEntity $component = NULL) {
+  public function delete(?ComponentEntity $component = NULL) {
     if (!$component) {
       throw new NotFoundHttpException('Component entity not found.');
     }
@@ -241,7 +241,7 @@ class ComponentEntityResource extends ResourceBase {
     try {
       $component->delete();
       $this->logger->notice('Deleted component entity %id.', ['%id' => $component->id()]);
-      
+
       // Return 204 No Content.
       return new ModifiedResourceResponse(NULL, 204);
     }

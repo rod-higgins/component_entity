@@ -17,10 +17,10 @@ class ComponentToComponentType extends EntityReverse {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['component_types'] = ['default' => []];
     $options['include_sdc_info'] = ['default' => FALSE];
-    
+
     return $options;
   }
 
@@ -29,17 +29,17 @@ class ComponentToComponentType extends EntityReverse {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     // Load all component types.
     $component_types = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->loadMultiple();
-    
+
     $type_options = [];
     foreach ($component_types as $type) {
       $type_options[$type->id()] = $type->label();
     }
-    
+
     $form['component_types'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Component types'),
@@ -47,7 +47,7 @@ class ComponentToComponentType extends EntityReverse {
       '#options' => $type_options,
       '#default_value' => $this->options['component_types'],
     ];
-    
+
     $form['include_sdc_info'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Include SDC component information'),
@@ -61,7 +61,7 @@ class ComponentToComponentType extends EntityReverse {
    */
   public function query() {
     parent::query();
-    
+
     // Filter by selected component types if specified.
     if (!empty($this->options['component_types'])) {
       $selected_types = array_filter($this->options['component_types']);
@@ -81,7 +81,7 @@ class ComponentToComponentType extends EntityReverse {
    */
   public function adminSummary() {
     $summary = parent::adminSummary();
-    
+
     if (!empty($this->options['component_types'])) {
       $selected_types = array_filter($this->options['component_types']);
       if (!empty($selected_types)) {
@@ -89,11 +89,11 @@ class ComponentToComponentType extends EntityReverse {
         $summary .= ' ' . $this->formatPlural($count, '(@count type)', '(@count types)');
       }
     }
-    
+
     if ($this->options['include_sdc_info']) {
       $summary .= ' ' . $this->t('+SDC');
     }
-    
+
     return $summary;
   }
 
@@ -102,7 +102,7 @@ class ComponentToComponentType extends EntityReverse {
    */
   public function calculateDependencies() {
     $dependencies = parent::calculateDependencies();
-    
+
     // Add dependencies on selected component types.
     if (!empty($this->options['component_types'])) {
       $selected_types = array_filter($this->options['component_types']);
@@ -115,7 +115,7 @@ class ComponentToComponentType extends EntityReverse {
         }
       }
     }
-    
+
     return $dependencies;
   }
 

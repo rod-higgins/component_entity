@@ -14,12 +14,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ComponentEntitySettingsForm extends ConfigFormBase {
 
   /**
-   * @var ModuleHandlerInterface
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
-   * @var ThemeHandlerInterface
+   * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
 
@@ -61,7 +61,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('component_entity.settings');
 
-    // Bi-directional sync settings
+    // Bi-directional sync settings.
     $form['bidirectional_sync'] = [
       '#type' => 'details',
       '#title' => $this->t('Bi-directional Sync Settings'),
@@ -100,7 +100,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       ],
     ];
 
-    // Generation settings
+    // Generation settings.
     $form['generation'] = [
       '#type' => 'details',
       '#title' => $this->t('File Generation Settings'),
@@ -119,7 +119,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       '#description' => $this->t('Where to generate component files.'),
     ];
 
-    // Get available modules and themes
+    // Get available modules and themes.
     $module_options = [];
     foreach ($this->moduleHandler->getModuleList() as $module_name => $module) {
       $module_options[$module_name] = $module->getName();
@@ -207,7 +207,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       ],
     ];
 
-    // Template settings
+    // Template settings.
     $form['templates'] = [
       '#type' => 'details',
       '#title' => $this->t('Template Settings'),
@@ -241,7 +241,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('templates.update_on_field_change'),
     ];
 
-    // React settings
+    // React settings.
     $form['react'] = [
       '#type' => 'details',
       '#title' => $this->t('React Component Settings'),
@@ -304,7 +304,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('react.storybook'),
     ];
 
-    // File system settings
+    // File system settings.
     $form['file_system'] = [
       '#type' => 'details',
       '#title' => $this->t('File System Settings'),
@@ -344,7 +344,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       '#description' => $this->t('Maximum allowed size for generated files.'),
     ];
 
-    // Security settings
+    // Security settings.
     $form['security'] = [
       '#type' => 'details',
       '#title' => $this->t('Security Settings'),
@@ -371,7 +371,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       ],
     ];
 
-    // Cache settings
+    // Cache settings.
     $form['cache'] = [
       '#type' => 'details',
       '#title' => $this->t('Cache Settings'),
@@ -394,7 +394,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('cache.clear_on_sync'),
     ];
 
-    // Logging settings
+    // Logging settings.
     $form['logging'] = [
       '#type' => 'details',
       '#title' => $this->t('Logging Settings'),
@@ -423,7 +423,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('logging.verbose_logging'),
     ];
 
-    // Actions
+    // Actions.
     $form['actions'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Sync Actions'),
@@ -456,17 +456,17 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    // Validate backup directory
+    // Validate backup directory.
     $backup_dir = $form_state->getValue(['file_system', 'backup_directory']);
     if (!empty($backup_dir)) {
       $scheme = \Drupal::service('stream_wrapper_manager')->getScheme($backup_dir);
       if (!$scheme) {
-        $form_state->setErrorByName('file_system][backup_directory', 
+        $form_state->setErrorByName('file_system][backup_directory',
           $this->t('Invalid backup directory path. Use a stream wrapper like private:// or public://'));
       }
     }
 
-    // Ensure at least one file type is selected for generation
+    // Ensure at least one file type is selected for generation.
     $generation = $form_state->getValue('generation');
     if (isset($generation['files'])) {
       $has_file_type = FALSE;
@@ -476,9 +476,9 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
           break;
         }
       }
-      
+
       if (!$has_file_type && $form_state->getValue(['bidirectional_sync', 'auto_generate_files'])) {
-        $form_state->setErrorByName('generation][files', 
+        $form_state->setErrorByName('generation][files',
           $this->t('At least one file type must be selected when auto-generation is enabled.'));
       }
     }
@@ -489,17 +489,17 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('component_entity.settings');
-    
-    // Save bi-directional sync settings
+
+    // Save bi-directional sync settings.
     $config->set('bidirectional_sync', $form_state->getValue('bidirectional_sync'));
-    
-    // Save generation settings
+
+    // Save generation settings.
     $generation = $form_state->getValue('generation');
     $target = $generation['target'];
-    $name = $target === 'module' 
-      ? $generation['module_name'] 
+    $name = $target === 'module'
+      ? $generation['module_name']
       : $generation['theme_name'];
-    
+
     $config->set('generation.target', $target);
     $config->set('generation.name', $name);
     $config->set('generation.generate_yml', $generation['files']['generate_yml']);
@@ -508,31 +508,31 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
     $config->set('generation.generate_css', $generation['files']['generate_css']);
     $config->set('generation.overwrite_files', $generation['overwrite_files']);
     $config->set('generation.backup_files', $generation['backup_files']);
-    
-    // Save template settings
+
+    // Save template settings.
     $config->set('templates', $form_state->getValue('templates'));
-    
-    // Save React settings
+
+    // Save React settings.
     $config->set('react', $form_state->getValue('react'));
-    
-    // Save file system settings
+
+    // Save file system settings.
     $file_system = $form_state->getValue('file_system');
     $config->set('file_system.allowed_modules', array_filter($file_system['allowed_modules']));
     $config->set('file_system.allowed_themes', array_filter($file_system['allowed_themes']));
     $config->set('file_system.backup_directory', $file_system['backup_directory']);
     $config->set('file_system.max_file_size', $file_system['max_file_size']);
-    
-    // Save security settings
+
+    // Save security settings.
     $config->set('security', $form_state->getValue('security'));
-    
-    // Save cache settings
+
+    // Save cache settings.
     $config->set('cache', $form_state->getValue('cache'));
-    
-    // Save logging settings
+
+    // Save logging settings.
     $config->set('logging', $form_state->getValue('logging'));
-    
+
     $config->save();
-    
+
     parent::submitForm($form, $form_state);
   }
 
@@ -545,18 +545,18 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
       'operations' => [],
       'finished' => '\Drupal\component_entity\Form\ComponentEntitySettingsForm::batchFinished',
     ];
-    
+
     $component_types = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->loadMultiple();
-    
+
     foreach ($component_types as $component_type) {
       $batch['operations'][] = [
         '\Drupal\component_entity\Form\ComponentEntitySettingsForm::batchSyncComponent',
         [$component_type->id()],
       ];
     }
-    
+
     batch_set($batch);
   }
 
@@ -567,11 +567,11 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
     $component_type = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->load($component_type_id);
-    
+
     if ($component_type) {
       $sync_service = \Drupal::service('component_entity.bidirectional_sync');
       $result = $sync_service->checkAndSyncComponentType($component_type);
-      
+
       $context['results'][] = $component_type_id;
       $context['message'] = t('Synced @type', ['@type' => $component_type->label()]);
     }
@@ -596,7 +596,7 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
    */
   public function validateComponentFiles(array &$form, FormStateInterface $form_state) {
     $validator = \Drupal::service('component_entity.validator');
-    // Implementation would validate all component files
+    // Implementation would validate all component files.
     $this->messenger()->addMessage($this->t('Component file validation completed.'));
   }
 
@@ -605,7 +605,8 @@ class ComponentEntitySettingsForm extends ConfigFormBase {
    */
   public function clearOldBackups(array &$form, FormStateInterface $form_state) {
     $file_writer = \Drupal::service('component_entity.file_writer');
-    // Implementation would clear old backup files
+    // Implementation would clear old backup files.
     $this->messenger()->addMessage($this->t('Old backup files have been cleared.'));
   }
+
 }

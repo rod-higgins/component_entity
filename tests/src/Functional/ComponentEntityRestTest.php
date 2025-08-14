@@ -101,7 +101,7 @@ class ComponentEntityRestTest extends ResourceTestBase {
    */
   public function testGetComponent() {
     $this->initAuthentication();
-    
+
     $url = Url::fromRoute('rest.entity.component.GET', [
       'component' => $this->componentEntity->id(),
       '_format' => static::$format,
@@ -111,7 +111,7 @@ class ComponentEntityRestTest extends ResourceTestBase {
     $this->assertResourceResponse(200, FALSE, $response);
 
     $response_data = $this->serializer->decode((string) $response->getBody(), static::$format);
-    
+
     $this->assertEquals($this->componentEntity->id(), $response_data['id'][0]['value']);
     $this->assertEquals('Test REST Component', $response_data['name'][0]['value']);
     $this->assertEquals('test_api_component', $response_data['type'][0]['target_id']);
@@ -148,7 +148,7 @@ class ComponentEntityRestTest extends ResourceTestBase {
       ->getStorage('component')
       ->loadByProperties(['name' => 'New REST Component']);
     $this->assertCount(1, $components);
-    
+
     $component = reset($components);
     $this->assertEquals('New REST Component', $component->getName());
     $this->assertEquals('twig', $component->getRenderMethod());
@@ -277,10 +277,10 @@ class ComponentEntityRestTest extends ResourceTestBase {
     // If not available, skip this test.
     try {
       $response = $this->request('GET', $url, []);
-      
+
       if ($response->getStatusCode() === 200) {
         $response_data = $this->serializer->decode((string) $response->getBody(), static::$format);
-        
+
         $this->assertEquals($this->componentType->id(), $response_data['id']);
         $this->assertEquals('Test API Component', $response_data['label']);
         $this->assertEquals('Component type for REST API testing', $response_data['description']);
@@ -315,12 +315,13 @@ class ComponentEntityRestTest extends ResourceTestBase {
     // This assumes a collection resource is configured.
     try {
       $response = $this->request('GET', $url, []);
-      
+
       if ($response->getStatusCode() === 200) {
         $response_data = $this->serializer->decode((string) $response->getBody(), static::$format);
-        
+
         $this->assertIsArray($response_data);
-        $this->assertGreaterThanOrEqual(4, count($response_data)); // Original + 3 new.
+        // Original + 3 new.
+        $this->assertGreaterThanOrEqual(4, count($response_data));
       }
     }
     catch (\Exception $e) {

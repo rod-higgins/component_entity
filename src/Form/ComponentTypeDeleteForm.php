@@ -49,7 +49,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
     EntityFieldManagerInterface $entity_field_manager,
-    MessengerInterface $messenger
+    MessengerInterface $messenger,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->entityFieldManager = $entity_field_manager;
@@ -81,29 +81,29 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
    */
   public function getDescription() {
     $description = $this->t('This action cannot be undone.');
-    
+
     // Count existing components of this type.
     $count = $this->getComponentCount();
-    
+
     if ($count > 0) {
       $description .= ' ' . $this->formatPlural(
         $count,
         '<strong>Warning:</strong> There is 1 component of this type. It will also be deleted.',
         '<strong>Warning:</strong> There are @count components of this type. They will all be deleted.'
       );
-      
+
       // Add extra warning for large numbers.
       if ($count > 10) {
         $description .= ' ' . $this->t('<strong>This is a destructive operation that will delete a large amount of content!</strong>');
       }
     }
-    
+
     // Check for field data that will be lost.
     $fields = $this->getFieldDefinitions();
     if (!empty($fields)) {
       $description .= ' ' . $this->t('All field data for this component type will be permanently deleted.');
     }
-    
+
     return $description;
   }
 
@@ -119,11 +119,11 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
    */
   public function getConfirmText() {
     $count = $this->getComponentCount();
-    
+
     if ($count > 10) {
       return $this->t('I understand this will delete @count components', ['@count' => $count]);
     }
-    
+
     return $this->t('Delete');
   }
 
@@ -132,9 +132,9 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-    
+
     $count = $this->getComponentCount();
-    
+
     // Add confirmation checkbox for destructive operations.
     if ($count > 10) {
       $form['confirm_delete'] = [
@@ -145,7 +145,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
         '#required' => TRUE,
         '#weight' => -10,
       ];
-      
+
       // List some example components that will be deleted.
       $examples = $this->getExampleComponents(5);
       if (!empty($examples)) {
@@ -153,14 +153,14 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
         foreach ($examples as $component) {
           $items[] = $component->label() . ' (ID: ' . $component->id() . ')';
         }
-        
+
         $form['examples'] = [
           '#theme' => 'item_list',
           '#title' => $this->t('Examples of components that will be deleted:'),
           '#items' => $items,
           '#weight' => -5,
         ];
-        
+
         if ($count > 5) {
           $form['examples']['#suffix'] = $this->t('... and @count more', [
             '@count' => $count - 5,
@@ -168,7 +168,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
         }
       }
     }
-    
+
     // Add information about the component type.
     $form['info'] = [
       '#type' => 'details',
@@ -176,13 +176,13 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
       '#open' => FALSE,
       '#weight' => -8,
     ];
-    
+
     $form['info']['machine_name'] = [
       '#type' => 'item',
       '#title' => $this->t('Machine name'),
       '#markup' => $this->entity->id(),
     ];
-    
+
     if ($sdc_id = $this->entity->get('sdc_id')) {
       $form['info']['sdc_id'] = [
         '#type' => 'item',
@@ -190,7 +190,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
         '#markup' => $sdc_id,
       ];
     }
-    
+
     // Show field information.
     $fields = $this->getFieldDefinitions();
     if (!empty($fields)) {
@@ -200,7 +200,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
           $field_list[] = $field_definition->getLabel() . ' (' . $field_name . ')';
         }
       }
-      
+
       if (!empty($field_list)) {
         $form['info']['fields'] = [
           '#theme' => 'item_list',
@@ -209,7 +209,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
         ];
       }
     }
-    
+
     return $form;
   }
 
@@ -218,7 +218,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     parent::validateForm($form, $form_state);
-    
+
     // Additional validation for large deletions.
     $count = $this->getComponentCount();
     if ($count > 10 && !$form_state->getValue('confirm_delete')) {
@@ -235,38 +235,38 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
     $component_type = $this->entity;
     $component_type_id = $component_type->id();
     $component_type_label = $component_type->label();
-    
+
     // Delete all components of this type first.
     $component_storage = $this->entityTypeManager->getStorage('component');
     $component_ids = $component_storage->getQuery()
       ->condition('type', $component_type_id)
       ->accessCheck(FALSE)
       ->execute();
-    
+
     $deleted_count = 0;
     if (!empty($component_ids)) {
       $components = $component_storage->loadMultiple($component_ids);
       $component_storage->delete($components);
       $deleted_count = count($components);
-      
+
       // Clear cache for all deleted components.
       $cache_manager = \Drupal::service('component_entity.cache_manager');
       $cache_manager->invalidateBundleCache($component_type_id);
     }
-    
+
     // Delete field storage configs if they're not used by other bundles.
     $this->deleteUnusedFieldStorage();
-    
+
     // Delete the component type.
     $component_type->delete();
-    
+
     // Log the deletion.
     $this->logger('component_entity')->notice('Deleted component type %name (ID: %id) and @count components.', [
       '%name' => $component_type_label,
       '%id' => $component_type_id,
       '@count' => $deleted_count,
     ]);
-    
+
     // Set appropriate message.
     if ($deleted_count > 0) {
       $this->messenger->addStatus($this->formatPlural(
@@ -281,7 +281,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
         '%name' => $component_type_label,
       ]));
     }
-    
+
     $form_state->setRedirectUrl($this->getCancelUrl());
   }
 
@@ -317,7 +317,7 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
       ->range(0, $limit)
       ->sort('created', 'DESC')
       ->execute();
-    
+
     return $storage->loadMultiple($ids);
   }
 
@@ -337,29 +337,29 @@ class ComponentTypeDeleteForm extends EntityConfirmFormBase {
   protected function deleteUnusedFieldStorage() {
     $bundle = $this->entity->id();
     $fields = $this->getFieldDefinitions();
-    
+
     foreach ($fields as $field_name => $field_definition) {
       // Only process configurable fields.
       if ($field_definition->isComputed() || !$field_definition->getFieldStorageDefinition()->isDeleteable()) {
         continue;
       }
-      
+
       // Check if this field storage is used by other bundles.
       $field_storage = $field_definition->getFieldStorageDefinition();
       $bundles_using_field = $field_storage->getBundles();
-      
+
       // Remove current bundle from the list.
       unset($bundles_using_field[$bundle]);
-      
+
       // If no other bundles use this field storage, delete it.
       if (empty($bundles_using_field)) {
         $field_storage_config = $this->entityTypeManager
           ->getStorage('field_storage_config')
           ->load('component.' . $field_name);
-        
+
         if ($field_storage_config && $field_storage_config->isDeletable()) {
           $field_storage_config->delete();
-          
+
           $this->logger('component_entity')->notice('Deleted unused field storage: @field', [
             '@field' => $field_name,
           ]);

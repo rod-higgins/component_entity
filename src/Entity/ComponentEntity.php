@@ -2,17 +2,14 @@
 
 namespace Drupal\component_entity\Entity;
 
-use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityPublishedTrait;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Entity\RevisionableContentEntityBase;
 use Drupal\Core\Field\BaseFieldDefinition;
-use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\user\EntityOwnerTrait;
-use Drupal\user\UserInterface;
 
 /**
  * Defines the Component entity.
@@ -371,7 +368,8 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
       $rendering_config = $component_type->getRenderingConfiguration();
       return !empty($rendering_config['twig_enabled']);
     }
-    return TRUE; // Default to TRUE for backward compatibility.
+    // Default to TRUE for backward compatibility.
+    return TRUE;
   }
 
   /**
@@ -394,34 +392,34 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
    */
   public function getProps() {
     $props = [];
-    
+
     foreach ($this->getFields() as $field_name => $field) {
       // Only process fields that start with 'field_' and are not slots.
       if (strpos($field_name, 'field_') === 0 && strpos($field_name, '_slot') === FALSE) {
         $prop_name = str_replace('field_', '', $field_name);
-        
+
         if (!$field->isEmpty()) {
           $field_type = $field->getFieldDefinition()->getType();
-          
+
           // Handle different field types appropriately.
           switch ($field_type) {
             case 'boolean':
               $props[$prop_name] = (bool) $field->value;
               break;
-              
+
             case 'integer':
               $props[$prop_name] = (int) $field->value;
               break;
-              
+
             case 'decimal':
             case 'float':
               $props[$prop_name] = (float) $field->value;
               break;
-              
+
             case 'json':
               $props[$prop_name] = json_decode($field->value, TRUE);
               break;
-              
+
             case 'entity_reference':
             case 'entity_reference_revisions':
               // For entity references, return the target ID(s).
@@ -433,7 +431,7 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
                 ->getFieldStorageDefinition()
                 ->isMultiple() ? $values : ($values[0] ?? NULL);
               break;
-              
+
             default:
               // For other fields, get the value property.
               $values = [];
@@ -448,7 +446,7 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
         }
       }
     }
-    
+
     return $props;
   }
 
@@ -457,18 +455,18 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
    */
   public function getSlots() {
     $slots = [];
-    
+
     foreach ($this->getFields() as $field_name => $field) {
       // Only process slot fields.
       if (strpos($field_name, 'field_') === 0 && strpos($field_name, '_slot') !== FALSE) {
         $slot_name = str_replace(['field_', '_slot'], '', $field_name);
-        
+
         if (!$field->isEmpty()) {
           $slots[$slot_name] = $field;
         }
       }
     }
-    
+
     return $slots;
   }
 
@@ -480,13 +478,13 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
    */
   protected function validateReactConfig() {
     $config = $this->getReactConfig();
-    
+
     // Validate hydration method.
     $valid_hydration = ['full', 'partial', 'none'];
     if (isset($config['hydration']) && !in_array($config['hydration'], $valid_hydration)) {
       throw new \InvalidArgumentException('Invalid hydration method. Must be one of: ' . implode(', ', $valid_hydration));
     }
-    
+
     // Ensure React is enabled for this component type.
     if (!$this->hasReactSupport()) {
       throw new \InvalidArgumentException('React rendering is not enabled for this component type.');
@@ -498,13 +496,13 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
    */
   public function getCacheTagsToInvalidate() {
     $tags = parent::getCacheTagsToInvalidate();
-    
+
     // Add render method specific tag.
     $tags[] = 'component_render:' . $this->getRenderMethod();
-    
+
     // Add bundle-specific tag.
     $tags[] = 'component_type:' . $this->bundle();
-    
+
     return $tags;
   }
 
@@ -513,12 +511,12 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
    */
   public function getCacheContexts() {
     $contexts = parent::getCacheContexts();
-    
+
     // Add render method context if component supports both.
     if ($this->hasReactSupport() && $this->hasTwigSupport()) {
       $contexts[] = 'component_render_method';
     }
-    
+
     return $contexts;
   }
 
@@ -534,15 +532,15 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
    */
   public static function bundleFieldDefinitions(EntityTypeInterface $entity_type, $bundle, array $base_field_definitions) {
     $fields = parent::bundleFieldDefinitions($entity_type, $bundle, $base_field_definitions);
-    
+
     // Load the component type to check rendering configuration.
     $component_type = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->load($bundle);
-    
+
     if ($component_type) {
       $rendering_config = $component_type->getRenderingConfiguration();
-      
+
       // If only one render method is available, hide the field.
       if ((!$rendering_config['twig_enabled'] && $rendering_config['react_enabled']) ||
           ($rendering_config['twig_enabled'] && !$rendering_config['react_enabled'])) {
@@ -554,7 +552,7 @@ class ComponentEntity extends RevisionableContentEntityBase implements Component
         }
       }
     }
-    
+
     return $fields;
   }
 

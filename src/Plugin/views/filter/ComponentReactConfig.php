@@ -17,7 +17,7 @@ class ComponentReactConfig extends FilterPluginBase {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['value'] = [
       'contains' => [
         'hydration' => ['default' => ''],
@@ -25,7 +25,7 @@ class ComponentReactConfig extends FilterPluginBase {
         'progressive' => ['default' => ''],
       ],
     ];
-    
+
     return $options;
   }
 
@@ -34,7 +34,7 @@ class ComponentReactConfig extends FilterPluginBase {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     $form['value']['hydration'] = [
       '#type' => 'select',
       '#title' => $this->t('Hydration method'),
@@ -47,7 +47,7 @@ class ComponentReactConfig extends FilterPluginBase {
       '#default_value' => $this->value['hydration'] ?? '',
       '#description' => $this->t('Filter by React hydration method.'),
     ];
-    
+
     $form['value']['ssr'] = [
       '#type' => 'select',
       '#title' => $this->t('Server-side rendering'),
@@ -59,7 +59,7 @@ class ComponentReactConfig extends FilterPluginBase {
       '#default_value' => $this->value['ssr'] ?? '',
       '#description' => $this->t('Filter by SSR configuration.'),
     ];
-    
+
     $form['value']['progressive'] = [
       '#type' => 'select',
       '#title' => $this->t('Progressive enhancement'),
@@ -80,9 +80,9 @@ class ComponentReactConfig extends FilterPluginBase {
     if (empty($this->options['exposed'])) {
       return;
     }
-    
+
     $identifier = $this->options['expose']['identifier'];
-    
+
     $form[$identifier . '_hydration'] = [
       '#type' => 'select',
       '#title' => $this->t('React Hydration'),
@@ -94,7 +94,7 @@ class ComponentReactConfig extends FilterPluginBase {
       ],
       '#default_value' => '',
     ];
-    
+
     $form[$identifier . '_settings'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('React Settings'),
@@ -113,21 +113,21 @@ class ComponentReactConfig extends FilterPluginBase {
     if (empty($this->options['exposed'])) {
       return TRUE;
     }
-    
+
     $identifier = $this->options['expose']['identifier'];
-    
+
     // Process hydration method.
     if (isset($input[$identifier . '_hydration']) && $input[$identifier . '_hydration'] !== '') {
       $this->value['hydration'] = $input[$identifier . '_hydration'];
     }
-    
+
     // Process settings checkboxes.
     if (isset($input[$identifier . '_settings'])) {
       $settings = $input[$identifier . '_settings'];
       $this->value['ssr'] = !empty($settings['ssr']) ? '1' : '';
       $this->value['progressive'] = !empty($settings['progressive']) ? '1' : '';
     }
-    
+
     return TRUE;
   }
 
@@ -136,9 +136,9 @@ class ComponentReactConfig extends FilterPluginBase {
    */
   public function query() {
     $this->ensureMyTable();
-    
+
     $field = "$this->tableAlias.$this->realField";
-    
+
     // Filter by hydration method.
     if (!empty($this->value['hydration'])) {
       $this->query->addWhere(
@@ -148,13 +148,13 @@ class ComponentReactConfig extends FilterPluginBase {
         'LIKE'
       );
     }
-    
+
     // Filter by SSR setting.
     if ($this->value['ssr'] !== '') {
-      $pattern = $this->value['ssr'] === '1' 
-        ? '%"ssr":true%' 
+      $pattern = $this->value['ssr'] === '1'
+        ? '%"ssr":true%'
         : '%"ssr":false%';
-      
+
       $this->query->addWhere(
         $this->options['group'],
         $field,
@@ -162,13 +162,13 @@ class ComponentReactConfig extends FilterPluginBase {
         'LIKE'
       );
     }
-    
+
     // Filter by progressive enhancement.
     if ($this->value['progressive'] !== '') {
-      $pattern = $this->value['progressive'] === '1' 
-        ? '%"progressive":true%' 
+      $pattern = $this->value['progressive'] === '1'
+        ? '%"progressive":true%'
         : '%"progressive":false%';
-      
+
       $this->query->addWhere(
         $this->options['group'],
         $field,
@@ -185,25 +185,27 @@ class ComponentReactConfig extends FilterPluginBase {
     if (!empty($this->options['exposed'])) {
       return $this->t('exposed');
     }
-    
+
     $summary = [];
-    
+
     if (!empty($this->value['hydration'])) {
       $summary[] = $this->t('Hydration: @method', ['@method' => $this->value['hydration']]);
     }
-    
+
     if ($this->value['ssr'] === '1') {
       $summary[] = $this->t('SSR enabled');
-    } elseif ($this->value['ssr'] === '0') {
+    }
+    elseif ($this->value['ssr'] === '0') {
       $summary[] = $this->t('SSR disabled');
     }
-    
+
     if ($this->value['progressive'] === '1') {
       $summary[] = $this->t('Progressive enabled');
-    } elseif ($this->value['progressive'] === '0') {
+    }
+    elseif ($this->value['progressive'] === '0') {
       $summary[] = $this->t('Progressive disabled');
     }
-    
+
     return !empty($summary) ? implode(', ', $summary) : $this->t('No filters');
   }
 

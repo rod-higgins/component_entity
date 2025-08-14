@@ -3,7 +3,6 @@
 namespace Drupal\component_entity;
 
 use Drupal\Core\Asset\AssetResolverInterface;
-use Drupal\Core\Asset\AttachedAssetsInterface;
 use Drupal\Core\Asset\AssetCollectionRendererInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Plugin\Component\ComponentPluginManager;
@@ -66,7 +65,7 @@ class ComponentReactRenderer {
     AssetResolverInterface $asset_resolver,
     AssetCollectionRendererInterface $css_collection_renderer,
     AssetCollectionRendererInterface $js_collection_renderer,
-    RequestStack $request_stack
+    RequestStack $request_stack,
   ) {
     $this->renderer = $renderer;
     $this->componentManager = $component_manager;
@@ -91,11 +90,11 @@ class ComponentReactRenderer {
     $component_id = 'component-' . $entity->uuid();
     $bundle = $entity->bundle();
     $react_config = $entity->getReactConfig();
-    
+
     // Extract props and slots.
     $props = $this->extractProps($entity);
     $slots = $this->extractSlots($entity);
-    
+
     // Build the React wrapper.
     $build = [
       '#theme' => 'component_react_wrapper',
@@ -134,29 +133,29 @@ class ComponentReactRenderer {
         'max-age' => $entity->getCacheMaxAge(),
       ],
     ];
-    
+
     // Add component-specific library if it exists.
     $library = "component_entity/component.$bundle";
     if ($this->libraryExists($library)) {
       $build['#attached']['library'][] = $library;
     }
-    
+
     // Handle SSR if configured.
     if (!empty($react_config['ssr'])) {
       $build['#ssr_content'] = $this->getServerSideRendered($entity, $props, $slots);
     }
-    
+
     // Handle progressive enhancement.
     if (!empty($react_config['progressive'])) {
       $build['#fallback_content'] = $this->getTwigFallback($entity, $view_mode);
     }
-    
+
     // Add loading placeholder based on configuration.
     if (!empty($react_config['show_loading'])) {
       $build['#loading_placeholder'] = TRUE;
       $build['#show_spinner'] = $react_config['show_spinner'] ?? TRUE;
     }
-    
+
     return $build;
   }
 
@@ -171,66 +170,66 @@ class ComponentReactRenderer {
    */
   protected function extractProps(ComponentEntityInterface $entity) {
     $props = [];
-    
+
     foreach ($entity->getFields() as $field_name => $field) {
       // Skip internal fields.
       if (strpos($field_name, 'field_') !== 0) {
         continue;
       }
-      
+
       // Skip slot fields.
       if (strpos($field_name, '_slot') !== FALSE) {
         continue;
       }
-      
+
       $prop_name = str_replace('field_', '', $field_name);
       $field_type = $field->getFieldDefinition()->getType();
-      
+
       // Handle different field types.
       switch ($field_type) {
         case 'json':
           $value = $field->value;
           $props[$prop_name] = json_decode($value, TRUE);
           break;
-          
+
         case 'boolean':
           $props[$prop_name] = (bool) $field->value;
           break;
-          
+
         case 'integer':
           $props[$prop_name] = (int) $field->value;
           break;
-          
+
         case 'decimal':
         case 'float':
           $props[$prop_name] = (float) $field->value;
           break;
-          
+
         case 'entity_reference':
         case 'entity_reference_revisions':
           $props[$prop_name] = $this->extractEntityReferenceProps($field);
           break;
-          
+
         case 'image':
           $props[$prop_name] = $this->extractImageProps($field);
           break;
-          
+
         case 'link':
           $props[$prop_name] = $this->extractLinkProps($field);
           break;
-          
+
         case 'list_string':
         case 'list_integer':
         case 'list_float':
           $props[$prop_name] = $field->value;
           break;
-          
+
         case 'text':
         case 'text_long':
         case 'text_with_summary':
           $props[$prop_name] = $this->extractTextProps($field);
           break;
-          
+
         default:
           // Default to simple value extraction.
           if (!$field->isEmpty()) {
@@ -239,7 +238,7 @@ class ComponentReactRenderer {
           break;
       }
     }
-    
+
     return $props;
   }
 
@@ -254,22 +253,22 @@ class ComponentReactRenderer {
    */
   protected function extractSlots(ComponentEntityInterface $entity) {
     $slots = [];
-    
+
     foreach ($entity->getFields() as $field_name => $field) {
       // Only process slot fields.
       if (strpos($field_name, 'field_') !== 0 || strpos($field_name, '_slot') === FALSE) {
         continue;
       }
-      
+
       $slot_name = str_replace(['field_', '_slot'], '', $field_name);
-      
+
       if (!$field->isEmpty()) {
         // Render the field to HTML.
         $rendered = $field->view();
         $slots[$slot_name] = $this->renderer->renderRoot($rendered);
       }
     }
-    
+
     return $slots;
   }
 
@@ -286,7 +285,7 @@ class ComponentReactRenderer {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       if ($entity = $item->entity) {
@@ -300,7 +299,7 @@ class ComponentReactRenderer {
         ];
       }
     }
-    
+
     return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() ? $values : $values[0] ?? NULL;
   }
 
@@ -317,7 +316,7 @@ class ComponentReactRenderer {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       if ($file = $item->entity) {
@@ -330,7 +329,7 @@ class ComponentReactRenderer {
         ];
       }
     }
-    
+
     return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() ? $values : $values[0] ?? NULL;
   }
 
@@ -347,7 +346,7 @@ class ComponentReactRenderer {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       $values[] = [
@@ -356,7 +355,7 @@ class ComponentReactRenderer {
         'options' => $item->options,
       ];
     }
-    
+
     return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() ? $values : $values[0] ?? NULL;
   }
 
@@ -373,7 +372,7 @@ class ComponentReactRenderer {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       // Check if field has format.
@@ -390,7 +389,7 @@ class ComponentReactRenderer {
         $values[] = $item->value;
       }
     }
-    
+
     return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() ? $values : $values[0] ?? NULL;
   }
 
@@ -427,11 +426,11 @@ class ComponentReactRenderer {
   protected function getTwigFallback(ComponentEntityInterface $entity, $view_mode) {
     // Get the SDC component ID.
     $sdc_id = $this->getSdcId($entity->bundle());
-    
+
     if (!$sdc_id) {
       return [];
     }
-    
+
     // Build using SDC.
     return [
       '#type' => 'component',
@@ -452,19 +451,19 @@ class ComponentReactRenderer {
    */
   protected function extractSlotsForTwig(ComponentEntityInterface $entity) {
     $slots = [];
-    
+
     foreach ($entity->getFields() as $field_name => $field) {
       if (strpos($field_name, 'field_') !== 0 || strpos($field_name, '_slot') === FALSE) {
         continue;
       }
-      
+
       $slot_name = str_replace(['field_', '_slot'], '', $field_name);
-      
+
       if (!$field->isEmpty()) {
         $slots[$slot_name] = $field->view();
       }
     }
-    
+
     return $slots;
   }
 
@@ -481,7 +480,7 @@ class ComponentReactRenderer {
     $component_type = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->load($bundle);
-    
+
     return $component_type ? $component_type->getSdcId() : NULL;
   }
 

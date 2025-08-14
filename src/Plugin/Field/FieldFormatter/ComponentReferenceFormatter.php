@@ -82,7 +82,7 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
     array $third_party_settings,
     EntityTypeManagerInterface $entity_type_manager,
     EntityDisplayRepositoryInterface $entity_display_repository,
-    RendererInterface $renderer
+    RendererInterface $renderer,
   ) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
     $this->entityTypeManager = $entity_type_manager;
@@ -343,11 +343,11 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
     // Attach necessary libraries.
     if (!empty($elements)) {
       $elements['#attached']['library'][] = 'component_entity/component-reference';
-      
+
       if ($this->getSetting('enable_lazy_loading')) {
         $elements['#attached']['library'][] = 'component_entity/lazy-loading';
       }
-      
+
       if ($this->getSetting('enable_progressive_enhancement')) {
         $elements['#attached']['library'][] = 'component_entity/progressive-enhancement';
       }
@@ -426,14 +426,14 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
     if (!isset($build['#context'])) {
       $build['#context'] = [];
     }
-    
+
     $build['#context']['prop_overrides'] = $overrides;
-    
+
     // For SDC components, merge into props.
     if (isset($build['#props'])) {
       $build['#props'] = array_merge($build['#props'], $overrides);
     }
-    
+
     // For React components, merge into data.
     if (isset($build['#react_data'])) {
       $build['#react_data'] = array_merge($build['#react_data'], $overrides);
@@ -454,15 +454,15 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
     // Add lazy loading attributes.
     $element['#attributes']['data-lazy-load'] = 'true';
     $element['#attributes']['data-component-path'] = $entity->toUrl('canonical')->toString();
-    
+
     // Add placeholder if enabled.
     if ($this->getSetting('show_placeholder')) {
       $placeholder_text = $this->getSetting('placeholder_text');
-      $element['#prefix'] = '<div class="component-placeholder" data-delta="' . $delta . '">' . 
+      $element['#prefix'] = '<div class="component-placeholder" data-delta="' . $delta . '">' .
         $placeholder_text . '</div>';
       $element['#attributes']['style'] = 'display: none;';
     }
-    
+
     // Add Intersection Observer configuration.
     $element['#attached']['drupalSettings']['componentEntity']['lazyLoad'][$delta] = [
       'threshold' => 0.1,
@@ -481,7 +481,7 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
   protected function addProgressiveEnhancement(array &$element, $entity) {
     // Add progressive enhancement attributes.
     $element['#attributes']['data-progressive-enhance'] = 'true';
-    
+
     // Determine the component's React configuration if applicable.
     if ($entity->hasField('react_config')) {
       $react_config = $entity->get('react_config')->getValue();
@@ -489,7 +489,7 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
         $element['#attributes']['data-react-config'] = json_encode($react_config);
       }
     }
-    
+
     // Add enhancement settings.
     $element['#attached']['drupalSettings']['componentEntity']['progressiveEnhance'][$entity->id()] = [
       'componentType' => $entity->bundle(),
@@ -508,20 +508,20 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
    */
   protected function applyCacheSettings(array &$element, $entity) {
     $cache_mode = $this->getSetting('cache_mode');
-    
+
     switch ($cache_mode) {
       case 'none':
         $element['#cache']['max-age'] = 0;
         break;
-        
+
       case 'per_user':
         $element['#cache']['contexts'][] = 'user';
         break;
-        
+
       case 'per_role':
         $element['#cache']['contexts'][] = 'user.roles';
         break;
-        
+
       default:
         // Use default caching.
         $element['#cache']['tags'] = Cache::mergeTags(
@@ -541,11 +541,11 @@ class ComponentReferenceFormatter extends EntityReferenceFormatterBase implement
   protected function getViewModeOptions() {
     $options = [];
     $view_modes = $this->entityDisplayRepository->getViewModes('component');
-    
+
     foreach ($view_modes as $mode => $info) {
       $options[$mode] = $info['label'];
     }
-    
+
     return $options;
   }
 

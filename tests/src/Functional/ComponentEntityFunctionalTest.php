@@ -173,7 +173,7 @@ class ComponentEntityFunctionalTest extends BrowserTestBase {
     $this->drupalGet('component/' . $component->id() . '/delete');
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains('Are you sure you want to delete');
-    
+
     $this->submitForm([], 'Delete');
     $this->assertSession()->pageTextContains('The component Updated Component Instance has been deleted.');
   }
@@ -245,7 +245,7 @@ class ComponentEntityFunctionalTest extends BrowserTestBase {
     $this->drupalGet('admin/content/components');
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains('Components');
-    
+
     // Check all components are listed.
     for ($i = 1; $i <= 3; $i++) {
       $this->assertSession()->pageTextContains('Test Component ' . $i);
@@ -338,11 +338,11 @@ class ComponentEntityFunctionalTest extends BrowserTestBase {
 
     // Access sync page.
     $this->drupalGet('admin/structure/component-types/sync');
-    
+
     // Check if sync page loads correctly.
     if ($this->getSession()->getStatusCode() === 200) {
       $this->assertSession()->pageTextContains('Sync SDC Components');
-      
+
       // Test sync button if available.
       if ($this->getSession()->getPage()->findButton('Sync Components')) {
         $this->submitForm([], 'Sync Components');

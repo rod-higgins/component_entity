@@ -45,7 +45,7 @@ class ComponentDateFilterTest extends KernelTestBase {
     // Install entity schemas.
     $this->installEntitySchema('component');
     $this->installEntitySchema('user');
-    
+
     // Install views configuration.
     $this->installConfig(['views', 'component_entity']);
 
@@ -166,7 +166,7 @@ class ComponentDateFilterTest extends KernelTestBase {
    */
   public function testDateFilterCustomRange() {
     $view = Views::getView('test_component_date_filter');
-    
+
     // Test custom date range.
     $view->setDisplay();
     $view->displayHandlers->get('default')->overrideOption('filters', [
@@ -183,7 +183,7 @@ class ComponentDateFilterTest extends KernelTestBase {
       ],
     ]);
     $view->execute();
-    
+
     $this->assertCount(2, $view->result, 'Custom range returns correct components');
   }
 
@@ -194,8 +194,8 @@ class ComponentDateFilterTest extends KernelTestBase {
     // Get the filter plugin directly.
     $view = Views::getView('test_component_date_filter');
     $view->initHandlers();
-    
-    $filter = $view->filter['created'] ?? null;
+
+    $filter = $view->filter['created'] ?? NULL;
     if (!$filter) {
       $this->markTestSkipped('Filter not found in view');
       return;
@@ -235,7 +235,7 @@ class ComponentDateFilterTest extends KernelTestBase {
   public function testFilterValidation() {
     $view = Views::getView('test_component_date_filter');
     $view->setDisplay();
-    
+
     // Test invalid preset value.
     $view->displayHandlers->get('default')->overrideOption('filters', [
       'created' => [
@@ -248,7 +248,7 @@ class ComponentDateFilterTest extends KernelTestBase {
         ],
       ],
     ]);
-    
+
     $view->execute();
     // Should not throw error, but return all results.
     $this->assertGreaterThan(0, count($view->result));
@@ -269,7 +269,7 @@ class ComponentDateFilterTest extends KernelTestBase {
         ],
       ],
     ]);
-    
+
     $view->execute();
     // Should handle gracefully and return results.
     $this->assertIsArray($view->result);

@@ -22,7 +22,7 @@ class ComponentRenderMethod extends InOperator {
         'react' => $this->t('React (Client-side)'),
       ];
     }
-    
+
     return $this->valueOptions;
   }
 
@@ -31,10 +31,10 @@ class ComponentRenderMethod extends InOperator {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['expose']['contains']['reduce'] = ['default' => TRUE];
     $options['show_description'] = ['default' => FALSE];
-    
+
     return $options;
   }
 
@@ -43,7 +43,7 @@ class ComponentRenderMethod extends InOperator {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     $form['show_description'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Show render method descriptions'),
@@ -57,36 +57,36 @@ class ComponentRenderMethod extends InOperator {
    */
   public function buildExposedForm(&$form, FormStateInterface $form_state) {
     parent::buildExposedForm($form, $form_state);
-    
+
     if (empty($this->options['exposed'])) {
       return;
     }
-    
+
     $identifier = $this->options['expose']['identifier'];
-    
+
     if ($this->options['show_description'] && isset($form[$identifier])) {
       $form[$identifier]['#options'] = [
         'All' => $this->t('- Any -'),
         'twig' => $this->t('Twig (Server-side, SEO-friendly)'),
         'react' => $this->t('React (Client-side, Interactive)'),
       ];
-      
+
       $form[$identifier . '_description'] = [
         '#type' => 'container',
         '#attributes' => ['class' => ['description', 'render-method-description']],
         '#weight' => isset($form[$identifier]['#weight']) ? $form[$identifier]['#weight'] + 0.01 : 1,
       ];
-      
+
       $form[$identifier . '_description']['twig'] = [
-        '#markup' => '<div class="render-method-desc twig-desc">' . 
-          $this->t('<strong>Twig:</strong> Server-rendered, SEO-friendly, fast initial load') . 
-          '</div>',
+        '#markup' => '<div class="render-method-desc twig-desc">' .
+        $this->t('<strong>Twig:</strong> Server-rendered, SEO-friendly, fast initial load') .
+        '</div>',
       ];
-      
+
       $form[$identifier . '_description']['react'] = [
-        '#markup' => '<div class="render-method-desc react-desc">' . 
-          $this->t('<strong>React:</strong> Client-rendered, interactive, dynamic updates') . 
-          '</div>',
+        '#markup' => '<div class="render-method-desc react-desc">' .
+        $this->t('<strong>React:</strong> Client-rendered, interactive, dynamic updates') .
+        '</div>',
       ];
     }
   }
@@ -101,27 +101,27 @@ class ComponentRenderMethod extends InOperator {
     if (!empty($this->options['exposed'])) {
       return $this->t('exposed');
     }
-    
+
     $methods = $this->getValueOptions();
-    
+
     if (!is_array($this->value)) {
       return '';
     }
-    
+
     $values = [];
     foreach ($this->value as $value) {
       if (isset($methods[$value])) {
         $values[] = $methods[$value];
       }
     }
-    
+
     if (count($values) == 1) {
       return reset($values);
     }
     elseif (count($values) > 1) {
       return $this->t('Multiple (@count)', ['@count' => count($values)]);
     }
-    
+
     return parent::adminSummary();
   }
 

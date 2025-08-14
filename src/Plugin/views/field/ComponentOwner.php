@@ -19,12 +19,12 @@ class ComponentOwner extends EntityField {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['display_format'] = ['default' => 'username'];
     $options['link_to_user'] = ['default' => TRUE];
     $options['show_avatar'] = ['default' => FALSE];
     $options['avatar_size'] = ['default' => 'small'];
-    
+
     return $options;
   }
 
@@ -33,7 +33,7 @@ class ComponentOwner extends EntityField {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     $form['display_format'] = [
       '#type' => 'select',
       '#title' => $this->t('Display format'),
@@ -46,19 +46,19 @@ class ComponentOwner extends EntityField {
       ],
       '#default_value' => $this->options['display_format'],
     ];
-    
+
     $form['link_to_user'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Link to user profile'),
       '#default_value' => $this->options['link_to_user'],
     ];
-    
+
     $form['show_avatar'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Show user avatar'),
       '#default_value' => $this->options['show_avatar'],
     ];
-    
+
     $form['avatar_size'] = [
       '#type' => 'select',
       '#title' => $this->t('Avatar size'),
@@ -81,24 +81,24 @@ class ComponentOwner extends EntityField {
    */
   public function render(ResultRow $values) {
     $entity = $this->getEntity($values);
-    
+
     if (!$entity instanceof EntityOwnerInterface) {
       return '';
     }
-    
+
     $owner = $entity->getOwner();
-    
+
     if (!$owner) {
       return $this->t('Anonymous');
     }
-    
+
     // Build the display text based on format.
     $display_text = '';
     switch ($this->options['display_format']) {
       case 'username':
         $display_text = $owner->getDisplayName();
         break;
-      
+
       case 'realname':
         // Check if real name field exists.
         if ($owner->hasField('field_real_name') && !$owner->get('field_real_name')->isEmpty()) {
@@ -108,15 +108,15 @@ class ComponentOwner extends EntityField {
           $display_text = $owner->getDisplayName();
         }
         break;
-      
+
       case 'email':
         $display_text = $owner->getEmail();
         break;
-      
+
       case 'uid':
         $display_text = $owner->id();
         break;
-      
+
       case 'full':
         $display_text = sprintf(
           '%s <%s>',
@@ -124,14 +124,14 @@ class ComponentOwner extends EntityField {
           $owner->getEmail()
         );
         break;
-      
+
       default:
         $display_text = $owner->getDisplayName();
     }
-    
+
     // Build the render array.
     $build = [];
-    
+
     // Add avatar if requested.
     if ($this->options['show_avatar']) {
       $avatar_sizes = [
@@ -139,9 +139,9 @@ class ComponentOwner extends EntityField {
         'medium' => 50,
         'large' => 100,
       ];
-      
+
       $size = $avatar_sizes[$this->options['avatar_size']] ?? 25;
-      
+
       $build['avatar'] = [
         '#theme' => 'user_picture',
         '#account' => $owner,
@@ -153,7 +153,7 @@ class ComponentOwner extends EntityField {
         ],
       ];
     }
-    
+
     // Add the text display.
     if ($this->options['link_to_user'] && $owner->access('view')) {
       $build['name'] = [
@@ -172,7 +172,7 @@ class ComponentOwner extends EntityField {
         '#suffix' => '</span>',
       ];
     }
-    
+
     // Wrap in a container if we have both avatar and name.
     if ($this->options['show_avatar']) {
       return [
@@ -184,7 +184,7 @@ class ComponentOwner extends EntityField {
         'name' => $build['name'],
       ];
     }
-    
+
     return $build['name'];
   }
 
@@ -193,10 +193,10 @@ class ComponentOwner extends EntityField {
    */
   public function clickSort($order) {
     $this->ensureMyTable();
-    
+
     // Join to the users table if needed.
     $this->query->ensureTable('users_field_data', $this->relationship);
-    
+
     // Sort by username.
     $this->query->addOrderBy('users_field_data', 'name', $order);
   }

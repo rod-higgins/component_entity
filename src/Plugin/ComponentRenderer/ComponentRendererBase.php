@@ -5,7 +5,6 @@ namespace Drupal\component_entity\Plugin;
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 use Drupal\Core\Cache\CacheableDependencyInterface;
-use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 
 /**
  * Base class for Component Renderer plugins.
@@ -92,7 +91,7 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
    */
   public function validateConfiguration(array $configuration) {
     $schema = $this->getConfigurationSchema();
-    
+
     foreach ($schema as $key => $definition) {
       // Check required fields.
       if (isset($definition['required']) && $definition['required']) {
@@ -100,31 +99,31 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
           return FALSE;
         }
       }
-      
+
       // Check types.
       if (isset($configuration[$key]) && isset($definition['type'])) {
         $type = $definition['type'];
         $value = $configuration[$key];
-        
+
         switch ($type) {
           case 'string':
             if (!is_string($value)) {
               return FALSE;
             }
             break;
-            
+
           case 'boolean':
             if (!is_bool($value)) {
               return FALSE;
             }
             break;
-            
+
           case 'integer':
             if (!is_int($value)) {
               return FALSE;
             }
             break;
-            
+
           case 'array':
             if (!is_array($value)) {
               return FALSE;
@@ -133,7 +132,7 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
         }
       }
     }
-    
+
     return TRUE;
   }
 
@@ -163,12 +162,12 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
    */
   public function getCacheContexts() {
     $contexts = $this->getPluginDefinition()['cache_contexts'] ?? [];
-    
+
     // Always add theme context for component rendering.
     if (!in_array('theme', $contexts)) {
       $contexts[] = 'theme';
     }
-    
+
     return $contexts;
   }
 
@@ -177,13 +176,13 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
    */
   public function getCacheTags(ComponentEntityInterface $entity) {
     $tags = $entity->getCacheTags();
-    
+
     // Add renderer-specific cache tag.
     $tags[] = 'component_renderer:' . $this->getPluginId();
-    
+
     // Add bundle-specific tag.
     $tags[] = 'component:' . $entity->bundle();
-    
+
     return $tags;
   }
 
@@ -204,13 +203,13 @@ abstract class ComponentRendererBase extends PluginBase implements ComponentRend
   public function defaultConfiguration() {
     $defaults = [];
     $schema = $this->getConfigurationSchema();
-    
+
     foreach ($schema as $key => $definition) {
       if (isset($definition['default'])) {
         $defaults[$key] = $definition['default'];
       }
     }
-    
+
     return $defaults;
   }
 

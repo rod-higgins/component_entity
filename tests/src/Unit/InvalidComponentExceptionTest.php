@@ -21,7 +21,7 @@ class InvalidComponentExceptionTest extends UnitTestCase {
    */
   public function testBasicException() {
     $exception = new InvalidComponentException('Test error message');
-    
+
     $this->assertInstanceOf(InvalidComponentException::class, $exception);
     $this->assertEquals('Test error message', $exception->getMessage());
   }
@@ -34,13 +34,13 @@ class InvalidComponentExceptionTest extends UnitTestCase {
    */
   public function testExceptionWithComponent() {
     $component = $this->createMock(ComponentEntityInterface::class);
-    
+
     $exception = new InvalidComponentException(
       'Component is invalid',
       $component,
       InvalidComponentException::INVALID_FIELD_VALUE
     );
-    
+
     $this->assertSame($component, $exception->getComponent());
     $this->assertEquals(InvalidComponentException::INVALID_FIELD_VALUE, $exception->getErrorType());
   }
@@ -60,9 +60,9 @@ class InvalidComponentExceptionTest extends UnitTestCase {
       ->willReturn('test_type');
 
     $missing_fields = ['field_title', 'field_description'];
-    
+
     $exception = InvalidComponentException::missingRequiredFields($component, $missing_fields);
-    
+
     $this->assertInstanceOf(InvalidComponentException::class, $exception);
     $this->assertStringContainsString('Test Component', $exception->getMessage());
     $this->assertStringContainsString('field_title', $exception->getMessage());
@@ -88,7 +88,7 @@ class InvalidComponentExceptionTest extends UnitTestCase {
       'not_a_number',
       'Value must be numeric'
     );
-    
+
     $this->assertInstanceOf(InvalidComponentException::class, $exception);
     $this->assertStringContainsString('field_number', $exception->getMessage());
     $this->assertStringContainsString('Value must be numeric', $exception->getMessage());
@@ -106,9 +106,9 @@ class InvalidComponentExceptionTest extends UnitTestCase {
     $component->expects($this->once())
       ->method('label')
       ->willReturn('Test Component');
-    
+
     $exception = InvalidComponentException::invalidRenderMethod($component, 'invalid_method');
-    
+
     $this->assertInstanceOf(InvalidComponentException::class, $exception);
     $this->assertStringContainsString('invalid_method', $exception->getMessage());
     $this->assertStringContainsString('twig, react', $exception->getMessage());
@@ -128,7 +128,7 @@ class InvalidComponentExceptionTest extends UnitTestCase {
       ->willReturn('test_type');
 
     $exception = InvalidComponentException::missingSdcComponent($component, 'test:missing_component');
-    
+
     $this->assertInstanceOf(InvalidComponentException::class, $exception);
     $this->assertStringContainsString('test:missing_component', $exception->getMessage());
     $this->assertEquals(InvalidComponentException::MISSING_SDC_COMPONENT, $exception->getErrorType());
@@ -147,9 +147,9 @@ class InvalidComponentExceptionTest extends UnitTestCase {
       ->willReturn('123');
 
     $chain = ['component_1', 'component_2', 'component_1'];
-    
+
     $exception = InvalidComponentException::circularReference($component, $chain);
-    
+
     $this->assertInstanceOf(InvalidComponentException::class, $exception);
     $this->assertStringContainsString('123', $exception->getMessage());
     $this->assertStringContainsString('circular', strtolower($exception->getMessage()));
@@ -170,7 +170,7 @@ class InvalidComponentExceptionTest extends UnitTestCase {
 
     $exception = new InvalidComponentException(
       'Validation failed',
-      null,
+      NULL,
       InvalidComponentException::SCHEMA_VALIDATION_FAILED,
       $violations
     );
@@ -192,10 +192,10 @@ class InvalidComponentExceptionTest extends UnitTestCase {
 
     $exception = new InvalidComponentException(
       'Error with details',
-      null,
+      NULL,
       InvalidComponentException::INVALID_PROPS,
       [],
-      null,
+      NULL,
       $details
     );
 

@@ -70,10 +70,10 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   public function onSyncStart(ComponentSyncEvent $event) {
     $logger = $this->loggerFactory->get('component_entity');
     $logger->info('Component sync started.');
-    
+
     // Store sync start time in state.
     \Drupal::state()->set('component_entity.sync_start_time', time());
-    
+
     // Clear relevant caches.
     $this->clearCaches();
   }
@@ -86,34 +86,34 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   public function onSyncComplete(ComponentSyncEvent $event) {
     $logger = $this->loggerFactory->get('component_entity');
-    
+
     // Calculate sync duration.
     $start_time = \Drupal::state()->get('component_entity.sync_start_time', time());
     $duration = time() - $start_time;
-    
+
     // Get statistics.
     $stats = $event->getStatistics();
-    
+
     // Log completion with statistics.
     $logger->info('Component sync completed in @duration seconds. @summary', [
       '@duration' => $duration,
       '@summary' => $event->getSummary(),
     ]);
-    
+
     // Store last sync time and results.
     \Drupal::state()->set('component_entity.last_sync', time());
     \Drupal::state()->set('component_entity.last_sync_results', $event->getResults());
-    
+
     // Clear caches if components were created or updated.
     if ($stats['created'] > 0 || $stats['updated'] > 0) {
       $this->clearCaches();
-      
+
       // Clear router cache if new bundles were created.
       if ($stats['created'] > 0) {
         \Drupal::service('router.builder')->rebuild();
       }
     }
-    
+
     // Send notification if there were errors.
     if ($event->hasErrors()) {
       $this->notifyErrors($event);
@@ -128,24 +128,24 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   public function onComponentSynced(ComponentSyncEvent $event) {
     $logger = $this->loggerFactory->get('component_entity');
-    
+
     $component_id = $event->getComponentId();
     $bundle = $event->getBundle();
     $is_new = $event->isNew();
-    
+
     $logger->info('Component @component synced to bundle @bundle (@operation)', [
       '@component' => $component_id,
       '@bundle' => $bundle,
       '@operation' => $is_new ? 'created' : 'updated',
     ]);
-    
+
     // Clear specific caches for this component.
     $cache_tags = [
       'component_type:' . $bundle,
       'component_list',
     ];
     \Drupal::service('cache_tags.invalidator')->invalidateTags($cache_tags);
-    
+
     // If this is a new component type, ensure Field UI routes are available.
     if ($is_new) {
       $this->ensureFieldUiRoutes($bundle);
@@ -160,7 +160,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   public function onSyncError(ComponentSyncEvent $event) {
     $logger = $this->loggerFactory->get('component_entity');
-    
+
     $errors = $event->getErrors();
     foreach ($errors as $component_id => $error_data) {
       $logger->error('Error syncing component @component: @message', [
@@ -168,7 +168,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
         '@message' => $error_data['message'],
       ] + $error_data['context']);
     }
-    
+
     // Check if we should stop the sync.
     $max_errors = \Drupal::config('component_entity.settings')->get('sync_max_errors') ?? 10;
     if (count($errors) >= $max_errors) {
@@ -188,14 +188,14 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   public function onPreCreateType(ComponentSyncEvent $event) {
     $component_id = $event->getComponentId();
     $bundle = $event->getBundle();
-    
+
     // Validate bundle name.
     if (!$this->isValidBundleName($bundle)) {
       $event->addError($component_id, 'Invalid bundle name: @bundle', ['@bundle' => $bundle]);
       $event->stopSync();
       return;
     }
-    
+
     // Check for naming conflicts.
     if ($this->hasNamingConflict($bundle)) {
       $event->addError($component_id, 'Bundle name conflict: @bundle', ['@bundle' => $bundle]);
@@ -211,10 +211,10 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   public function onPostCreateType(ComponentSyncEvent $event) {
     $bundle = $event->getBundle();
-    
+
     // Create default view modes.
     $this->createDefaultViewModes($bundle);
-    
+
     // Set up default permissions.
     $this->setupDefaultPermissions($bundle);
   }
@@ -227,7 +227,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   public function onPreSyncFields(ComponentSyncEvent $event) {
     $bundle = $event->getBundle();
-    
+
     // Backup existing field configuration.
     $this->backupFieldConfiguration($bundle);
   }
@@ -240,10 +240,10 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
    */
   public function onPostSyncFields(ComponentSyncEvent $event) {
     $bundle = $event->getBundle();
-    
+
     // Update form and view displays.
     $this->updateDisplays($bundle);
-    
+
     // Clear field-related caches.
     \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
   }
@@ -254,13 +254,13 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   protected function clearCaches() {
     // Clear entity type definitions.
     \Drupal::entityTypeManager()->clearCachedDefinitions();
-    
+
     // Clear field definitions.
     \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
-    
+
     // Clear plugin caches.
     \Drupal::service('plugin.manager.sdc')->clearCachedDefinitions();
-    
+
     // Invalidate component-related cache tags.
     $cache_tags = [
       'component_list',
@@ -279,7 +279,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   protected function notifyErrors(ComponentSyncEvent $event) {
     $errors = $event->getErrors();
     $count = count($errors);
-    
+
     // Log critical if many errors.
     if ($count > 5) {
       $logger = $this->loggerFactory->get('component_entity');
@@ -287,7 +287,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
         '@count' => $count,
       ]);
     }
-    
+
     // Send email notification if configured.
     $config = \Drupal::config('component_entity.settings');
     if ($config->get('sync_error_notification')) {
@@ -311,7 +311,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
       'count' => count($errors),
     ];
     $langcode = \Drupal::currentUser()->getPreferredLangcode();
-    
+
     $mail_manager->mail($module, $key, $to, $langcode, $params);
   }
 
@@ -329,23 +329,23 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     if (!preg_match('/^[a-z0-9_]+$/', $bundle)) {
       return FALSE;
     }
-    
+
     // Must not exceed 32 characters.
     if (strlen($bundle) > 32) {
       return FALSE;
     }
-    
+
     // Must not start with a number.
     if (is_numeric($bundle[0])) {
       return FALSE;
     }
-    
+
     // Must not be a reserved word.
     $reserved = ['id', 'uuid', 'type', 'status', 'created', 'changed', 'uid'];
     if (in_array($bundle, $reserved)) {
       return FALSE;
     }
-    
+
     return TRUE;
   }
 
@@ -369,7 +369,7 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
         }
       }
     }
-    
+
     return FALSE;
   }
 
@@ -396,10 +396,10 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
     // This would typically create view mode configurations.
     // For now, just ensure default displays exist.
     $display_repository = \Drupal::service('entity_display.repository');
-    
+
     // Ensure default form display exists.
     $display_repository->getFormDisplay('component', $bundle, 'default');
-    
+
     // Ensure default view display exists.
     $display_repository->getViewDisplay('component', $bundle, 'default');
   }
@@ -440,11 +440,11 @@ class ComponentSyncSubscriber implements EventSubscriberInterface {
   protected function updateDisplays($bundle) {
     // Ensure displays are properly configured.
     $display_repository = \Drupal::service('entity_display.repository');
-    
+
     // Update form display.
     $form_display = $display_repository->getFormDisplay('component', $bundle, 'default');
     $form_display->save();
-    
+
     // Update view display.
     $view_display = $display_repository->getViewDisplay('component', $bundle, 'default');
     $view_display->save();

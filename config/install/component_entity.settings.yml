@@ -63,4 +63,3 @@ logging:
   log_file_operations: true
   log_sync_operations: true
   verbose_logging: false
-  

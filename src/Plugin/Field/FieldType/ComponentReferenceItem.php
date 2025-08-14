@@ -215,16 +215,16 @@ class ComponentReferenceItem extends EntityReferenceItem {
    */
   protected function getDisplayModeOptions() {
     $options = ['default' => $this->t('Default')];
-    
+
     $display_modes = \Drupal::service('entity_display.repository')
       ->getViewModeOptionsByBundle('component', NULL);
-    
+
     foreach ($display_modes as $mode => $label) {
       if ($mode !== 'default') {
         $options[$mode] = $label;
       }
     }
-    
+
     return $options;
   }
 
@@ -233,7 +233,7 @@ class ComponentReferenceItem extends EntityReferenceItem {
    */
   public function getValue() {
     $values = parent::getValue();
-    
+
     // Ensure custom properties are properly initialized.
     if (!isset($values['display_settings'])) {
       $values['display_settings'] = [];
@@ -244,7 +244,7 @@ class ComponentReferenceItem extends EntityReferenceItem {
     if (!isset($values['wrapper_attributes'])) {
       $values['wrapper_attributes'] = [];
     }
-    
+
     return $values;
   }
 
@@ -253,12 +253,12 @@ class ComponentReferenceItem extends EntityReferenceItem {
    */
   public function preSave() {
     parent::preSave();
-    
+
     // Validate that the referenced entity is a component.
     if ($this->entity && $this->entity->getEntityTypeId() !== 'component') {
       throw new \InvalidArgumentException('Component reference fields can only reference component entities.');
     }
-    
+
     // Apply any render method override.
     if ($this->entity && $render_method = $this->getSetting('render_method_override')) {
       $this->entity->set('render_method', $render_method);
@@ -339,23 +339,23 @@ class ComponentReferenceItem extends EntityReferenceItem {
    */
   public static function generateSampleValue(FieldStorageDefinitionInterface $field_definition) {
     $values = parent::generateSampleValue($field_definition);
-    
+
     // Add sample component-specific data.
     $values['display_settings'] = [
       'theme' => 'default',
       'variant' => 'primary',
     ];
-    
+
     $values['override_props'] = [
       'title' => 'Sample Component Title',
       'description' => 'This is a sample component description.',
     ];
-    
+
     $values['wrapper_attributes'] = [
       'class' => ['component-wrapper', 'sample-component'],
       'data-component' => 'sample',
     ];
-    
+
     return $values;
   }
 

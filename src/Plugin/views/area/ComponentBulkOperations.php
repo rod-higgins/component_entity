@@ -17,7 +17,7 @@ class ComponentBulkOperations extends AreaPluginBase {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['operations'] = [
       'default' => [
         'publish' => 'publish',
@@ -25,11 +25,11 @@ class ComponentBulkOperations extends AreaPluginBase {
         'delete' => 'delete',
       ],
     ];
-    
+
     $options['batch_size'] = ['default' => 50];
     $options['display_selection_info'] = ['default' => TRUE];
     $options['select_all_pages'] = ['default' => TRUE];
-    
+
     return $options;
   }
 
@@ -38,7 +38,7 @@ class ComponentBulkOperations extends AreaPluginBase {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     $form['operations'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Available operations'),
@@ -46,7 +46,7 @@ class ComponentBulkOperations extends AreaPluginBase {
       '#default_value' => $this->options['operations'],
       '#description' => $this->t('Select which bulk operations to make available.'),
     ];
-    
+
     $form['batch_size'] = [
       '#type' => 'number',
       '#title' => $this->t('Batch size'),
@@ -55,14 +55,14 @@ class ComponentBulkOperations extends AreaPluginBase {
       '#max' => 500,
       '#description' => $this->t('Number of items to process per batch operation.'),
     ];
-    
+
     $form['display_selection_info'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Display selection information'),
       '#default_value' => $this->options['display_selection_info'],
       '#description' => $this->t('Show count of selected items and selection controls.'),
     ];
-    
+
     $form['select_all_pages'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Allow selecting all items across pages'),
@@ -78,14 +78,14 @@ class ComponentBulkOperations extends AreaPluginBase {
     if ($empty && !$this->options['empty']) {
       return [];
     }
-    
+
     $build = [
       '#type' => 'container',
       '#attributes' => [
         'class' => ['component-bulk-operations'],
       ],
     ];
-    
+
     // Add selection controls.
     if ($this->options['display_selection_info']) {
       $build['selection_info'] = [
@@ -102,7 +102,7 @@ class ComponentBulkOperations extends AreaPluginBase {
           ],
         ],
       ];
-      
+
       if ($this->options['select_all_pages']) {
         $build['selection_info']['select_all_pages'] = [
           '#type' => 'container',
@@ -116,7 +116,7 @@ class ComponentBulkOperations extends AreaPluginBase {
           ),
         ];
       }
-      
+
       $build['selection_info']['selected_count'] = [
         '#type' => 'html_tag',
         '#tag' => 'span',
@@ -127,7 +127,7 @@ class ComponentBulkOperations extends AreaPluginBase {
         '#value' => $this->t('0 items selected'),
       ];
     }
-    
+
     // Add operations form.
     $build['operations'] = [
       '#type' => 'container',
@@ -135,17 +135,17 @@ class ComponentBulkOperations extends AreaPluginBase {
         'class' => ['bulk-operations-form'],
       ],
     ];
-    
+
     $enabled_operations = array_filter($this->options['operations']);
     $available_operations = $this->getAvailableOperations();
-    
+
     $operation_options = [];
     foreach ($enabled_operations as $key => $value) {
       if (isset($available_operations[$key])) {
         $operation_options[$key] = $available_operations[$key];
       }
     }
-    
+
     $build['operations']['operation'] = [
       '#type' => 'select',
       '#title' => $this->t('With selected'),
@@ -155,7 +155,7 @@ class ComponentBulkOperations extends AreaPluginBase {
         'data-bulk-operations-action' => 'true',
       ],
     ];
-    
+
     $build['operations']['execute'] = [
       '#type' => 'button',
       '#value' => $this->t('Apply'),
@@ -165,7 +165,7 @@ class ComponentBulkOperations extends AreaPluginBase {
         'disabled' => 'disabled',
       ],
     ];
-    
+
     // Add JavaScript.
     $build['#attached']['library'][] = 'component_entity/bulk-operations';
     $build['#attached']['drupalSettings']['componentBulkOperations'] = [
@@ -173,7 +173,7 @@ class ComponentBulkOperations extends AreaPluginBase {
       'displayId' => $this->view->current_display,
       'batchSize' => $this->options['batch_size'],
     ];
-    
+
     return $build;
   }
 
@@ -203,13 +203,13 @@ class ComponentBulkOperations extends AreaPluginBase {
    */
   public function validate() {
     $errors = parent::validate();
-    
+
     // Ensure at least one operation is selected.
     $enabled_operations = array_filter($this->options['operations']);
     if (empty($enabled_operations)) {
       $errors[] = $this->t('At least one bulk operation must be enabled.');
     }
-    
+
     return $errors;
   }
 
@@ -219,7 +219,7 @@ class ComponentBulkOperations extends AreaPluginBase {
   public function adminSummary() {
     $enabled_operations = array_filter($this->options['operations']);
     $count = count($enabled_operations);
-    
+
     return $this->formatPlural(
       $count,
       '@count operation',

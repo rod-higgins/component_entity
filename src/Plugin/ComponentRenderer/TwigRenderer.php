@@ -2,7 +2,6 @@
 
 namespace Drupal\component_entity\Plugin\ComponentRenderer;
 
-use Drupal\component_entity\Annotation\ComponentRenderer;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 use Drupal\component_entity\Plugin\ComponentRendererBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
@@ -115,7 +114,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     TwigEnvironment $twig,
     ComponentPluginManager $component_manager,
     ThemeManagerInterface $theme_manager,
-    ModuleHandlerInterface $module_handler
+    ModuleHandlerInterface $module_handler,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->renderer = $renderer;
@@ -147,16 +146,16 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
   public function render(ComponentEntityInterface $entity, array $context = []) {
     $bundle = $entity->bundle();
     $view_mode = $context['view_mode'] ?? 'default';
-    
+
     // Configure Twig environment based on settings.
     $this->configureTwigEnvironment();
-    
+
     // Determine which template to use.
     $template = $this->determineTemplate($entity, $view_mode, $context);
-    
+
     // Prepare variables for the template.
     $variables = $this->prepareVariables($entity, $context);
-    
+
     // Build the render array.
     $build = [
       '#theme' => $template['theme_hook'] ?? 'component_entity',
@@ -174,7 +173,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
         'max-age' => $this->getCacheMaxAge($entity),
       ],
     ];
-    
+
     // If using SDC component, render it.
     if ($template['type'] === 'sdc') {
       $build = $this->renderSDCComponent($entity, $template['sdc_id'], $variables);
@@ -184,15 +183,15 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       $build['#theme'] = $template['theme_hook'];
       $build['#template'] = $template['template_file'];
     }
-    
+
     // Allow other modules to alter the build.
     $this->moduleHandler->alter('component_twig_render', $build, $entity, $context);
-    
+
     // Add debug information if enabled.
     if ($this->configuration['debug'] ?? FALSE) {
       $build = $this->addDebugInfo($build, $entity, $template);
     }
-    
+
     return $build;
   }
 
@@ -203,11 +202,11 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     if ($this->configuration['debug'] ?? FALSE) {
       $this->twig->enableDebug();
     }
-    
+
     if ($this->configuration['auto_reload'] ?? TRUE) {
       $this->twig->enableAutoReload();
     }
-    
+
     if ($this->configuration['strict_variables'] ?? FALSE) {
       $this->twig->enableStrictVariables();
     }
@@ -233,7 +232,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
   protected function determineTemplate(ComponentEntityInterface $entity, $view_mode, array $context) {
     $bundle = $entity->bundle();
     $component_type = $entity->getComponentType();
-    
+
     // Check if SDC component exists.
     if ($component_type && $sdc_id = $component_type->get('sdc_id')) {
       if ($this->componentManager->hasDefinition($sdc_id)) {
@@ -244,7 +243,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
         ];
       }
     }
-    
+
     // Check for custom template in the theme.
     $theme_path = $this->themeManager->getActiveTheme()->getPath();
     $template_suggestions = [
@@ -253,7 +252,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       "component--{$view_mode}",
       "component",
     ];
-    
+
     foreach ($template_suggestions as $suggestion) {
       $template_file = "{$theme_path}/templates/{$suggestion}.html.twig";
       if (file_exists($template_file)) {
@@ -264,7 +263,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
         ];
       }
     }
-    
+
     // Fall back to default template.
     return [
       'type' => 'default',
@@ -295,32 +294,32 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       'changed' => $entity->getChangedTime(),
       'published' => $entity->isPublished(),
     ];
-    
+
     // Add all field values.
     foreach ($entity->getFields() as $field_name => $field) {
       $variables['fields'][$field_name] = $field->view();
-      
+
       // Also add raw values for easier access.
       $value = $field->getValue();
       if (!empty($value)) {
         $variables['values'][$field_name] = $this->processFieldValue($field, $value);
       }
     }
-    
+
     // Process specific field types.
     $this->processEntityReferences($entity, $variables);
     $this->processMediaFields($entity, $variables);
     $this->processLinkFields($entity, $variables);
-    
+
     // Add context variables.
     if (!empty($context['variables'])) {
       $variables = array_merge($variables, $context['variables']);
     }
-    
+
     // Add theme-specific variables.
     $variables['theme_hook_suggestions'] = $this->buildThemeHookSuggestions($entity, $context);
     $variables['attributes'] = $this->buildAttributes($entity, $context);
-    
+
     return $variables;
   }
 
@@ -341,7 +340,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     // Extract props and slots from variables.
     $props = $this->extractPropsFromVariables($variables);
     $slots = $this->extractSlotsFromVariables($variables);
-    
+
     $build = [
       '#type' => 'component',
       '#component' => $sdc_id,
@@ -352,7 +351,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
         'variables' => $variables,
       ],
     ];
-    
+
     // Wrap in a container for styling.
     $build['#prefix'] = sprintf(
       '<div class="component-twig component-twig--%s" data-entity-id="%s">',
@@ -360,7 +359,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       $entity->id()
     );
     $build['#suffix'] = '</div>';
-    
+
     return $build;
   }
 
@@ -375,18 +374,18 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
   protected function processEntityReferences(ComponentEntityInterface $entity, array &$variables) {
     foreach ($entity->getFields() as $field_name => $field) {
       $field_definition = $field->getFieldDefinition();
-      
-      if ($field_definition->getType() === 'entity_reference' || 
+
+      if ($field_definition->getType() === 'entity_reference' ||
           $field_definition->getType() === 'entity_reference_revisions') {
         $referenced_entities = $field->referencedEntities();
-        
+
         if (!empty($referenced_entities)) {
           $variables['references'][$field_name] = $referenced_entities;
-          
+
           // Add rendered versions.
           $view_builder = \Drupal::entityTypeManager()
             ->getViewBuilder($field_definition->getSetting('target_type'));
-          
+
           foreach ($referenced_entities as $delta => $referenced_entity) {
             $variables['rendered_references'][$field_name][$delta] = $view_builder->view($referenced_entity, 'teaser');
           }
@@ -406,11 +405,11 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
   protected function processMediaFields(ComponentEntityInterface $entity, array &$variables) {
     foreach ($entity->getFields() as $field_name => $field) {
       $field_definition = $field->getFieldDefinition();
-      
-      if ($field_definition->getType() === 'entity_reference' && 
+
+      if ($field_definition->getType() === 'entity_reference' &&
           $field_definition->getSetting('target_type') === 'media') {
         $media_entities = $field->referencedEntities();
-        
+
         foreach ($media_entities as $delta => $media) {
           // Get the media URL.
           if ($media->hasField('field_media_image')) {
@@ -437,7 +436,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     foreach ($entity->getFields() as $field_name => $field) {
       if ($field->getFieldDefinition()->getType() === 'link') {
         $links = $field->getValue();
-        
+
         foreach ($links as $delta => $link) {
           $variables['links'][$field_name][$delta] = [
             'url' => $link['uri'],
@@ -464,13 +463,13 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     $suggestions = [];
     $bundle = $entity->bundle();
     $view_mode = $context['view_mode'] ?? 'default';
-    
+
     $suggestions[] = 'component_entity';
     $suggestions[] = 'component_entity__' . $bundle;
     $suggestions[] = 'component_entity__' . $view_mode;
     $suggestions[] = 'component_entity__' . $bundle . '__' . $view_mode;
     $suggestions[] = 'component_entity__' . $bundle . '__' . $entity->id();
-    
+
     return $suggestions;
   }
 
@@ -497,12 +496,12 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       'data-entity-id' => $entity->id(),
       'data-entity-uuid' => $entity->uuid(),
     ];
-    
+
     // Add custom attributes from context.
     if (!empty($context['attributes'])) {
       $attributes = array_merge_recursive($attributes, $context['attributes']);
     }
-    
+
     return $attributes;
   }
 
@@ -517,7 +516,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
    */
   protected function extractPropsFromVariables(array $variables) {
     $props = [];
-    
+
     // Extract specific values as props.
     if (!empty($variables['values'])) {
       foreach ($variables['values'] as $field_name => $value) {
@@ -528,7 +527,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
         }
       }
     }
-    
+
     return $props;
   }
 
@@ -543,7 +542,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
    */
   protected function extractSlotsFromVariables(array $variables) {
     $slots = [];
-    
+
     // Extract slot fields.
     if (!empty($variables['fields'])) {
       foreach ($variables['fields'] as $field_name => $render_array) {
@@ -553,7 +552,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
         }
       }
     }
-    
+
     return $slots;
   }
 
@@ -572,7 +571,7 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     // Handle single vs multiple values.
     if (count($value) === 1) {
       $item = reset($value);
-      
+
       // Extract the appropriate value.
       if (isset($item['value'])) {
         return $item['value'];
@@ -583,12 +582,12 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
       elseif (isset($item['uri'])) {
         return $item['uri'];
       }
-      
+
       return $item;
     }
-    
+
     // For multi-value fields, process each value.
-    return array_map(function($item) {
+    return array_map(function ($item) {
       if (isset($item['value'])) {
         return $item['value'];
       }
@@ -620,13 +619,13 @@ class TwigRenderer extends ComponentRendererBase implements ContainerFactoryPlug
     $build['#prefix'] .= '<!-- Entity: ' . $entity->getEntityTypeId() . '/' . $entity->bundle() . '/' . $entity->id() . ' -->' . PHP_EOL;
     $build['#prefix'] .= '<!-- Template: ' . ($template['template_file'] ?? 'none') . ' -->' . PHP_EOL;
     $build['#prefix'] .= '<!-- Template Type: ' . $template['type'] . ' -->' . PHP_EOL;
-    
+
     if ($template['type'] === 'sdc') {
       $build['#prefix'] .= '<!-- SDC ID: ' . $template['sdc_id'] . ' -->' . PHP_EOL;
     }
-    
+
     $build['#suffix'] = PHP_EOL . '<!-- COMPONENT DEBUG END -->';
-    
+
     return $build;
   }
 

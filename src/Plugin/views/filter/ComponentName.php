@@ -17,11 +17,11 @@ class ComponentName extends StringFilter {
    */
   protected function defineOptions() {
     $options = parent::defineOptions();
-    
+
     $options['expose']['contains']['placeholder'] = ['default' => ''];
     $options['expose']['contains']['autocomplete'] = ['default' => FALSE];
     $options['case_sensitive'] = ['default' => FALSE];
-    
+
     return $options;
   }
 
@@ -30,7 +30,7 @@ class ComponentName extends StringFilter {
    */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
-    
+
     $form['case_sensitive'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Case sensitive'),
@@ -44,7 +44,7 @@ class ComponentName extends StringFilter {
    */
   public function buildExposeForm(&$form, FormStateInterface $form_state) {
     parent::buildExposeForm($form, $form_state);
-    
+
     $form['expose']['placeholder'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Placeholder'),
@@ -56,7 +56,7 @@ class ComponentName extends StringFilter {
         ],
       ],
     ];
-    
+
     $form['expose']['autocomplete'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable autocomplete'),
@@ -75,19 +75,19 @@ class ComponentName extends StringFilter {
    */
   public function buildExposedForm(&$form, FormStateInterface $form_state) {
     parent::buildExposedForm($form, $form_state);
-    
+
     if (empty($this->options['exposed'])) {
       return;
     }
-    
+
     $identifier = $this->options['expose']['identifier'];
-    
+
     if (isset($form[$identifier])) {
       // Add placeholder if configured.
       if (!empty($this->options['expose']['placeholder'])) {
         $form[$identifier]['#placeholder'] = $this->options['expose']['placeholder'];
       }
-      
+
       // Add autocomplete if enabled.
       if (!empty($this->options['expose']['autocomplete'])) {
         $form[$identifier]['#autocomplete_route_name'] = 'component_entity.autocomplete.name';
@@ -95,7 +95,7 @@ class ComponentName extends StringFilter {
           'type' => 'all',
         ];
       }
-      
+
       // Make it a search input type.
       $form[$identifier]['#type'] = 'search';
       $form[$identifier]['#size'] = 30;
@@ -107,7 +107,7 @@ class ComponentName extends StringFilter {
    */
   public function operators() {
     $operators = parent::operators();
-    
+
     // Add additional operators specific to component names.
     $operators['word'] = [
       'title' => $this->t('Contains any word'),
@@ -115,14 +115,14 @@ class ComponentName extends StringFilter {
       'method' => 'opContainsWord',
       'values' => 1,
     ];
-    
+
     $operators['allwords'] = [
       'title' => $this->t('Contains all words'),
       'short' => $this->t('has all'),
       'method' => 'opContainsAllWords',
       'values' => 1,
     ];
-    
+
     return $operators;
   }
 
@@ -133,13 +133,13 @@ class ComponentName extends StringFilter {
     if (!empty($this->options['exposed'])) {
       return $this->t('exposed');
     }
-    
+
     $output = parent::adminSummary();
-    
+
     if ($this->options['case_sensitive']) {
       $output .= ' ' . $this->t('(case sensitive)');
     }
-    
+
     return $output;
   }
 
@@ -148,21 +148,21 @@ class ComponentName extends StringFilter {
    */
   protected function opContainsWord($field) {
     $value = $this->getValue();
-    
+
     if (empty($value)) {
       return;
     }
-    
+
     $words = preg_split('/\s+/', $value);
     $or_condition = $this->query->getConnection()->condition('OR');
-    
+
     foreach ($words as $word) {
       if (strlen($word) > 0) {
         $operator = $this->options['case_sensitive'] ? 'LIKE BINARY' : 'LIKE';
         $or_condition->condition($field, '%' . $this->query->getConnection()->escapeLike($word) . '%', $operator);
       }
     }
-    
+
     $this->query->addWhere($this->options['group'], $or_condition);
   }
 
@@ -171,21 +171,21 @@ class ComponentName extends StringFilter {
    */
   protected function opContainsAllWords($field) {
     $value = $this->getValue();
-    
+
     if (empty($value)) {
       return;
     }
-    
+
     $words = preg_split('/\s+/', $value);
     $and_condition = $this->query->getConnection()->condition('AND');
-    
+
     foreach ($words as $word) {
       if (strlen($word) > 0) {
         $operator = $this->options['case_sensitive'] ? 'LIKE BINARY' : 'LIKE';
         $and_condition->condition($field, '%' . $this->query->getConnection()->escapeLike($word) . '%', $operator);
       }
     }
-    
+
     $this->query->addWhere($this->options['group'], $and_condition);
   }
 

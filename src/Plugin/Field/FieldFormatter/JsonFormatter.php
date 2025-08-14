@@ -5,7 +5,6 @@ namespace Drupal\component_entity\Plugin\Field\FieldFormatter;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\StringTranslation\TranslatableMarkup;
 
 /**
  * Plugin implementation of the 'json_formatted' formatter.
@@ -188,8 +187,8 @@ class JsonFormatter extends FormatterBase {
     }
 
     if ($this->getSetting('collapsible')) {
-      $summary[] = $this->getSetting('collapsed') 
-        ? $this->t('Collapsible (initially collapsed)') 
+      $summary[] = $this->getSetting('collapsed')
+        ? $this->t('Collapsible (initially collapsed)')
         : $this->t('Collapsible');
     }
 
@@ -265,7 +264,7 @@ class JsonFormatter extends FormatterBase {
 
       // Add toolbar if enabled.
       if ($this->getSetting('show_toolbar')) {
-        $elements[$delta]['#prefix'] = $this->buildToolbar($item->value, $delta) . 
+        $elements[$delta]['#prefix'] = $this->buildToolbar($item->value, $delta) .
           ($elements[$delta]['#prefix'] ?? '');
       }
 
@@ -294,7 +293,7 @@ class JsonFormatter extends FormatterBase {
    */
   protected function renderAsCode($json, $decoded, $delta) {
     $format = $this->getSetting('format');
-    
+
     // Format the JSON based on settings.
     switch ($format) {
       case 'minified':
@@ -307,7 +306,7 @@ class JsonFormatter extends FormatterBase {
 
       case 'pretty':
       default:
-        $formatted = json_encode($decoded, 
+        $formatted = json_encode($decoded,
           JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         break;
     }
@@ -351,7 +350,7 @@ class JsonFormatter extends FormatterBase {
    */
   protected function renderAsTable($data, $delta) {
     $rows = $this->buildTableRows($data, 0);
-    
+
     $element = [
       '#type' => 'table',
       '#header' => [
@@ -392,13 +391,14 @@ class JsonFormatter extends FormatterBase {
         $prefix,
         $this->t('(Max depth reached)'),
         'truncated',
-      ]];
+      ],
+      ];
     }
 
     if (is_array($data) || is_object($data)) {
       foreach ($data as $key => $value) {
         $full_key = $prefix ? $prefix . '.' . $key : $key;
-        
+
         if (is_array($value) || is_object($value)) {
           if ($this->getSetting('show_keys')) {
             $rows[] = [
@@ -407,7 +407,7 @@ class JsonFormatter extends FormatterBase {
               ['data' => gettype($value), 'class' => ['json-type']],
             ];
           }
-          
+
           // Recursively add nested items.
           $nested_rows = $this->buildTableRows($value, $depth + 1, $full_key);
           $rows = array_merge($rows, $nested_rows);
@@ -445,7 +445,7 @@ class JsonFormatter extends FormatterBase {
    */
   protected function renderAsTree($data, $delta) {
     $tree = $this->buildTree($data);
-    
+
     $element = [
       '#theme' => 'item_list',
       '#items' => $tree,
@@ -494,8 +494,8 @@ class JsonFormatter extends FormatterBase {
         }
         else {
           $items[] = [
-            '#markup' => '<span class="json-tree-key">' . $key . '</span>: ' . 
-              '<span class="json-tree-value">' . $this->formatValue($value) . '</span>',
+            '#markup' => '<span class="json-tree-key">' . $key . '</span>: ' .
+            '<span class="json-tree-value">' . $this->formatValue($value) . '</span>',
           ];
         }
       }
@@ -545,7 +545,7 @@ class JsonFormatter extends FormatterBase {
    */
   protected function renderAsPhpArray($data, $delta) {
     $php_code = var_export($data, TRUE);
-    
+
     return [
       '#type' => 'html_tag',
       '#tag' => 'pre',
@@ -605,21 +605,21 @@ class JsonFormatter extends FormatterBase {
    */
   protected function buildToolbar($json, $delta) {
     $toolbar = '<div class="json-toolbar" data-delta="' . $delta . '">';
-    
-    $toolbar .= '<button type="button" class="json-copy-btn" data-json="' . 
+
+    $toolbar .= '<button type="button" class="json-copy-btn" data-json="' .
       htmlspecialchars($json, ENT_QUOTES) . '">' . $this->t('Copy') . '</button>';
-    
-    $toolbar .= '<button type="button" class="json-download-btn" data-json="' . 
+
+    $toolbar .= '<button type="button" class="json-download-btn" data-json="' .
       htmlspecialchars($json, ENT_QUOTES) . '">' . $this->t('Download') . '</button>';
-    
-    $toolbar .= '<button type="button" class="json-expand-btn">' . 
+
+    $toolbar .= '<button type="button" class="json-expand-btn">' .
       $this->t('Expand All') . '</button>';
-    
-    $toolbar .= '<button type="button" class="json-collapse-btn">' . 
+
+    $toolbar .= '<button type="button" class="json-collapse-btn">' .
       $this->t('Collapse All') . '</button>';
-    
+
     $toolbar .= '</div>';
-    
+
     return $toolbar;
   }
 

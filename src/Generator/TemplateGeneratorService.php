@@ -13,17 +13,17 @@ use Psr\Log\LoggerInterface;
 class TemplateGeneratorService {
 
   /**
-   * @var EntityFieldManagerInterface
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
   protected $entityFieldManager;
 
   /**
-   * @var FileSystemInterface
+   * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
-   * @var LoggerInterface
+   * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
@@ -33,7 +33,7 @@ class TemplateGeneratorService {
   public function __construct(
     EntityFieldManagerInterface $entity_field_manager,
     FileSystemInterface $file_system,
-    LoggerInterface $logger
+    LoggerInterface $logger,
   ) {
     $this->entityFieldManager = $entity_field_manager;
     $this->fileSystem = $file_system;
@@ -65,7 +65,7 @@ class TemplateGeneratorService {
 
     try {
       $template_file = $component_path . '/' . $component_type->id() . '.html.twig';
-      
+
       // Check if file exists and overwrite is false.
       if (file_exists($template_file) && !$options['overwrite']) {
         return [
@@ -76,36 +76,37 @@ class TemplateGeneratorService {
 
       // Generate template content.
       $content = $this->generateTemplateContent($component_type, $options);
-      
+
       // Ensure directory exists.
       $this->fileSystem->prepareDirectory($component_path, FileSystemInterface::CREATE_DIRECTORY);
-      
+
       // Write the file.
       $result = file_put_contents($template_file, $content);
-      
+
       if ($result !== FALSE) {
         $this->logger->info('Generated Twig template for @type at @path', [
           '@type' => $component_type->id(),
           '@path' => $template_file,
         ]);
-        
+
         return [
           'success' => TRUE,
           'message' => 'Successfully generated Twig template',
           'path' => $template_file,
         ];
       }
-      
+
       return [
         'success' => FALSE,
         'message' => 'Failed to write template file',
       ];
-      
-    } catch (\Exception $e) {
+
+    }
+    catch (\Exception $e) {
       $this->logger->error('Error generating Twig template: @error', [
         '@error' => $e->getMessage(),
       ]);
-      
+
       return [
         'success' => FALSE,
         'message' => 'Error: ' . $e->getMessage(),
@@ -128,30 +129,30 @@ class TemplateGeneratorService {
     $bundle = $component_type->id();
     $label = $component_type->label();
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $bundle);
-    
+
     // Start building the template.
     $content = $this->generateTemplateHeader($component_type, $options);
-    
+
     // Generate CSS class based on style.
     $base_class = $this->getBaseClass($bundle, $options['style']);
-    
+
     // Build the main container.
     $content .= $this->generateContainerOpen($base_class, $options);
-    
+
     // Generate field sections.
     $content .= $this->generateFieldSections($fields, $base_class, $options);
-    
+
     // Generate slot sections.
     $content .= $this->generateSlotSections($fields, $base_class, $options);
-    
+
     // Close the main container.
     $content .= $this->generateContainerClose($options);
-    
+
     // Add footer comments if debug is enabled.
     if ($options['include_debug']) {
       $content .= $this->generateTemplateFooter($component_type);
     }
-    
+
     return $content;
   }
 
@@ -164,7 +165,7 @@ class TemplateGeneratorService {
     $header .= " * Template for " . $component_type->label() . " component.\n";
     $header .= " *\n";
     $header .= " * Available variables:\n";
-    
+
     // List available variables.
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $component_type->id());
     foreach ($fields as $field_name => $field_definition) {
@@ -173,7 +174,7 @@ class TemplateGeneratorService {
         $header .= " * - " . $prop_name . ": " . $field_definition->getLabel() . "\n";
       }
     }
-    
+
     $header .= " * - attributes: HTML attributes for the container element.\n";
     $header .= " * - title_attributes: HTML attributes for the title.\n";
     $header .= " * - content_attributes: HTML attributes for the content.\n";
@@ -182,7 +183,7 @@ class TemplateGeneratorService {
     $header .= " *\n";
     $header .= " * @ingroup themeable\n";
     $header .= " #}\n\n";
-    
+
     // Add namespace if using BEM style.
     if ($options['style'] === 'bem') {
       $header .= "{% set classes = [\n";
@@ -190,7 +191,7 @@ class TemplateGeneratorService {
       $header .= "  view_mode ? '" . $this->getBaseClass($component_type->id(), 'bem') . "--' ~ view_mode|clean_class,\n";
       $header .= "] %}\n\n";
     }
-    
+
     return $header;
   }
 
@@ -199,20 +200,20 @@ class TemplateGeneratorService {
    */
   protected function generateContainerOpen($base_class, array $options) {
     $content = "";
-    
+
     switch ($options['style']) {
       case 'bem':
         $content .= "<div{{ attributes.addClass(classes) }}>\n";
         break;
-      
+
       case 'bootstrap':
         $content .= "<div{{ attributes.addClass('component', '" . $base_class . "', 'container') }}>\n";
         break;
-      
+
       default:
         $content .= "<div{{ attributes.addClass('" . $base_class . "') }}>\n";
     }
-    
+
     return $content;
   }
 
@@ -222,18 +223,18 @@ class TemplateGeneratorService {
   protected function generateFieldSections($fields, $base_class, array $options) {
     $content = "";
     $indent = "  ";
-    
+
     foreach ($fields as $field_name => $field_definition) {
       if (!$this->isTemplateField($field_definition)) {
         continue;
       }
-      
+
       $prop_name = $this->getPropVariableName($field_definition);
       $element_class = $this->getElementClass($base_class, $field_name, $options['style']);
-      
+
       // Generate field output based on field type.
       $field_type = $field_definition->getType();
-      
+
       switch ($field_type) {
         case 'string':
         case 'string_long':
@@ -241,13 +242,14 @@ class TemplateGeneratorService {
             $content .= $indent . "{% if " . $prop_name . " %}\n";
             $content .= $indent . "  <h2{{ title_attributes.addClass('" . $element_class . "') }}>{{ " . $prop_name . " }}</h2>\n";
             $content .= $indent . "{% endif %}\n\n";
-          } else {
+          }
+          else {
             $content .= $indent . "{% if " . $prop_name . " %}\n";
             $content .= $indent . "  <div class=\"" . $element_class . "\">{{ " . $prop_name . " }}</div>\n";
             $content .= $indent . "{% endif %}\n\n";
           }
           break;
-        
+
         case 'text':
         case 'text_long':
         case 'text_with_summary':
@@ -257,7 +259,7 @@ class TemplateGeneratorService {
           $content .= $indent . "  </div>\n";
           $content .= $indent . "{% endif %}\n\n";
           break;
-        
+
         case 'image':
           $content .= $indent . "{% if " . $prop_name . " %}\n";
           $content .= $indent . "  <div class=\"" . $element_class . "\">\n";
@@ -265,7 +267,7 @@ class TemplateGeneratorService {
           $content .= $indent . "  </div>\n";
           $content .= $indent . "{% endif %}\n\n";
           break;
-        
+
         case 'link':
           $content .= $indent . "{% if " . $prop_name . " %}\n";
           $content .= $indent . "  <div class=\"" . $element_class . "\">\n";
@@ -277,7 +279,7 @@ class TemplateGeneratorService {
           $content .= $indent . "  </div>\n";
           $content .= $indent . "{% endif %}\n\n";
           break;
-        
+
         case 'entity_reference':
           $content .= $indent . "{% if " . $prop_name . " %}\n";
           $content .= $indent . "  <div class=\"" . $element_class . "\">\n";
@@ -285,27 +287,27 @@ class TemplateGeneratorService {
           $content .= $indent . "  </div>\n";
           $content .= $indent . "{% endif %}\n\n";
           break;
-        
+
         case 'boolean':
           $content .= $indent . "{% if " . $prop_name . " %}\n";
           $content .= $indent . "  <div class=\"" . $element_class . " " . $element_class . "--active\"></div>\n";
           $content .= $indent . "{% endif %}\n\n";
           break;
-        
+
         case 'list_string':
         case 'list_integer':
           $content .= $indent . "{% if " . $prop_name . " %}\n";
           $content .= $indent . "  <div class=\"" . $element_class . " " . $element_class . "--{{ " . $prop_name . "|clean_class }}\">{{ " . $prop_name . " }}</div>\n";
           $content .= $indent . "{% endif %}\n\n";
           break;
-        
+
         default:
           $content .= $indent . "{% if " . $prop_name . " %}\n";
           $content .= $indent . "  <div class=\"" . $element_class . "\">{{ " . $prop_name . " }}</div>\n";
           $content .= $indent . "{% endif %}\n\n";
       }
     }
-    
+
     return $content;
   }
 
@@ -315,15 +317,15 @@ class TemplateGeneratorService {
   protected function generateSlotSections($fields, $base_class, array $options) {
     $content = "";
     $indent = "  ";
-    
+
     foreach ($fields as $field_name => $field_definition) {
       if (!$this->isSlotField($field_definition)) {
         continue;
       }
-      
+
       $slot_name = $this->getSlotName($field_definition);
       $element_class = $this->getElementClass($base_class, 'slot-' . $slot_name, $options['style']);
-      
+
       $content .= $indent . "{# Slot: " . $field_definition->getLabel() . " #}\n";
       $content .= $indent . "{% block " . $slot_name . " %}\n";
       $content .= $indent . "  {% if slots." . $slot_name . " %}\n";
@@ -333,7 +335,7 @@ class TemplateGeneratorService {
       $content .= $indent . "  {% endif %}\n";
       $content .= $indent . "{% endblock %}\n\n";
     }
-    
+
     return $content;
   }
 
@@ -357,14 +359,14 @@ class TemplateGeneratorService {
    */
   protected function getBaseClass($bundle, $style) {
     $class = str_replace('_', '-', $bundle);
-    
+
     switch ($style) {
       case 'bem':
         return 'c-' . $class;
-      
+
       case 'bootstrap':
         return 'component-' . $class;
-      
+
       default:
         return $class;
     }
@@ -375,14 +377,14 @@ class TemplateGeneratorService {
    */
   protected function getElementClass($base_class, $element, $style) {
     $element = str_replace(['field_', '_'], ['', '-'], $element);
-    
+
     switch ($style) {
       case 'bem':
         return $base_class . '__' . $element;
-      
+
       case 'bootstrap':
         return $base_class . '-' . $element;
-      
+
       default:
         return $element;
     }
@@ -398,21 +400,21 @@ class TemplateGeneratorService {
       'created', 'changed', 'uid', 'revision_timestamp',
       'revision_uid', 'revision_log', 'render_method', 'react_config',
     ];
-    
+
     if (in_array($field_definition->getName(), $skip_fields)) {
       return FALSE;
     }
-    
+
     // Skip computed fields.
     if ($field_definition->isComputed()) {
       return FALSE;
     }
-    
+
     // Skip slot fields (handled separately).
     if ($this->isSlotField($field_definition)) {
       return FALSE;
     }
-    
+
     return TRUE;
   }
 
@@ -429,12 +431,12 @@ class TemplateGeneratorService {
    */
   protected function getPropVariableName(FieldDefinitionInterface $field_definition) {
     $field_name = $field_definition->getName();
-    
+
     // Remove 'field_' prefix.
     if (strpos($field_name, 'field_') === 0) {
       return substr($field_name, 6);
     }
-    
+
     return $field_name;
   }
 
@@ -445,4 +447,5 @@ class TemplateGeneratorService {
     $field_name = $field_definition->getName();
     return str_replace(['field_', '_slot'], '', $field_name);
   }
+
 }

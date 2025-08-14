@@ -2,7 +2,6 @@
 
 namespace Drupal\component_entity\Plugin\ComponentRenderer;
 
-use Drupal\component_entity\Annotation\ComponentRenderer;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 use Drupal\component_entity\Plugin\ComponentRendererBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
@@ -10,7 +9,6 @@ use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Asset\AssetResolverInterface;
 use Drupal\Core\Asset\AssetCollectionRendererInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Cache\CacheableMetadata;
 
 /**
  * Provides a React renderer for components.
@@ -38,7 +36,7 @@ use Drupal\Core\Cache\CacheableMetadata;
  *       "default" = "full"
  *     },
  *     "lazy_load" = {
- *       "type" = "boolean", 
+ *       "type" = "boolean",
  *       "label" = "Lazy Load",
  *       "default" = FALSE
  *     },
@@ -105,7 +103,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
     RendererInterface $renderer,
     AssetResolverInterface $asset_resolver,
     AssetCollectionRendererInterface $js_collection_renderer,
-    AssetCollectionRendererInterface $css_collection_renderer
+    AssetCollectionRendererInterface $css_collection_renderer,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->renderer = $renderer;
@@ -136,17 +134,17 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
     $component_id = 'react-component-' . $entity->uuid();
     $bundle = $entity->bundle();
     $view_mode = $context['view_mode'] ?? 'default';
-    
+
     // Get React configuration.
     $react_config = $entity->getReactConfig();
     $hydration_method = $react_config['hydration'] ?? $this->configuration['hydration_method'] ?? 'full';
     $lazy_load = $react_config['lazy'] ?? $this->configuration['lazy_load'] ?? FALSE;
     $ssr_enabled = $react_config['ssr'] ?? $this->configuration['ssr_enabled'] ?? FALSE;
-    
+
     // Extract props and slots from entity fields.
     $props = $this->extractProps($entity, $context);
     $slots = $this->extractSlots($entity, $context);
-    
+
     // Build the render array.
     $build = [
       '#theme' => 'component_react_wrapper',
@@ -180,21 +178,21 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
         'max-age' => $this->getCacheMaxAge($entity),
       ],
     ];
-    
+
     // Add SSR content if enabled.
     if ($ssr_enabled && $this->supportsSSR()) {
       $build['#ssr_content'] = $this->renderServerSide($entity, $props, $slots);
     }
-    
+
     // Add loading placeholder for lazy-loaded components.
     if ($lazy_load) {
       $build['#loading_placeholder'] = TRUE;
       $build['#show_spinner'] = TRUE;
     }
-    
+
     // Add fallback content for no-JS scenarios.
     $build['#fallback_content'] = $this->renderFallback($entity, $context);
-    
+
     return $build;
   }
 
@@ -233,7 +231,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
    */
   protected function extractProps(ComponentEntityInterface $entity, array $context) {
     $props = [];
-    
+
     // Get all field values except internal fields.
     foreach ($entity->getFields() as $field_name => $field) {
       if (!in_array($field_name, $this->getInternalFields())) {
@@ -243,12 +241,12 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
         }
       }
     }
-    
+
     // Add context data as props.
     if (!empty($context['additional_props'])) {
       $props = array_merge($props, $context['additional_props']);
     }
-    
+
     return $props;
   }
 
@@ -265,7 +263,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
    */
   protected function extractSlots(ComponentEntityInterface $entity, array $context) {
     $slots = [];
-    
+
     // Look for fields that represent slots (e.g., field_slot_*).
     foreach ($entity->getFields() as $field_name => $field) {
       if (strpos($field_name, 'field_slot_') === 0) {
@@ -276,12 +274,12 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
         }
       }
     }
-    
+
     // Add context slots.
     if (!empty($context['slots'])) {
       $slots = array_merge($slots, $context['slots']);
     }
-    
+
     return $slots;
   }
 
@@ -320,7 +318,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
     $fallback = [
       '#markup' => '<div class="component-fallback">' . $entity->label() . '</div>',
     ];
-    
+
     return $fallback;
   }
 
@@ -377,7 +375,7 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
     if (count($value) === 1) {
       return reset($value);
     }
-    
+
     return $value;
   }
 
@@ -403,7 +401,8 @@ class ReactRenderer extends ComponentRendererBase implements ContainerFactoryPlu
    */
   public function getCacheContexts() {
     $contexts = parent::getCacheContexts();
-    $contexts[] = 'session'; // For React state.
+    // For React state.
+    $contexts[] = 'session';
     return $contexts;
   }
 

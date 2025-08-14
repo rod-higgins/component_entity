@@ -48,7 +48,7 @@ class ComponentCacheManager {
   public function __construct(
     CacheBackendInterface $cache_backend,
     CacheTagsInvalidatorInterface $cache_tags_invalidator,
-    EntityTypeManagerInterface $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     $this->cacheBackend = $cache_backend;
     $this->cacheTagsInvalidator = $cache_tags_invalidator;
@@ -66,25 +66,25 @@ class ComponentCacheManager {
    */
   public function getCacheMetadata(ComponentEntityInterface $entity) {
     $metadata = new CacheableMetadata();
-    
+
     // Add base entity cache tags.
     $metadata->addCacheTags($entity->getCacheTags());
-    
+
     // Add bundle-specific cache tag.
     $metadata->addCacheTags(['component_type:' . $entity->bundle()]);
-    
+
     // Add render-method-specific cache tag.
     $render_method = $entity->getRenderMethod();
     $metadata->addCacheTags(['component_render:' . $render_method]);
-    
+
     // Add standard cache contexts.
     $metadata->addCacheContexts(['user.permissions']);
-    
+
     // React components might need different caching.
     if ($render_method === 'react') {
       // Add session context for React state.
       $metadata->addCacheContexts(['session']);
-      
+
       // Check if component has interactive features.
       $react_config = $entity->getReactConfig();
       if (!empty($react_config['progressive']) || $react_config['hydration'] === 'partial') {
@@ -92,7 +92,7 @@ class ComponentCacheManager {
         $metadata->addCacheContexts(['headers:User-Agent']);
       }
     }
-    
+
     // Add field-specific cache metadata.
     foreach ($entity->getFields() as $field_name => $field) {
       if ($field->getFieldDefinition()->isDisplayConfigurable('view')) {
@@ -100,10 +100,10 @@ class ComponentCacheManager {
         $metadata = $metadata->merge($field_metadata);
       }
     }
-    
+
     // Allow other modules to alter cache metadata.
     \Drupal::moduleHandler()->alter('component_entity_cache_metadata', $metadata, $entity);
-    
+
     return $metadata;
   }
 
@@ -153,7 +153,7 @@ class ComponentCacheManager {
   public function generateCacheId(ComponentEntityInterface $entity, $view_mode = 'default', $langcode = NULL) {
     $langcode = $langcode ?: $entity->language()->getId();
     $render_method = $entity->getRenderMethod();
-    
+
     $parts = [
       'component',
       $entity->id(),
@@ -162,14 +162,14 @@ class ComponentCacheManager {
       $langcode,
       $render_method,
     ];
-    
+
     // Add React-specific cache key parts.
     if ($render_method === 'react') {
       $react_config = $entity->getReactConfig();
       $parts[] = $react_config['hydration'] ?? 'full';
       $parts[] = !empty($react_config['progressive']) ? 'prog' : 'std';
     }
-    
+
     return implode(':', $parts);
   }
 
@@ -185,7 +185,7 @@ class ComponentCacheManager {
       'component_list',
       'component_type:' . $entity->bundle(),
     ];
-    
+
     $this->cacheTagsInvalidator->invalidateTags($tags);
   }
 
@@ -200,7 +200,7 @@ class ComponentCacheManager {
       'component_type:' . $bundle,
       'component_list:' . $bundle,
     ];
-    
+
     $this->cacheTagsInvalidator->invalidateTags($tags);
   }
 
@@ -226,26 +226,26 @@ class ComponentCacheManager {
    */
   public function getCacheContexts(ComponentEntityInterface $entity) {
     $contexts = ['user.permissions'];
-    
+
     // Add language context if translatable.
     if ($entity->isTranslatable()) {
       $contexts[] = 'languages:language_content';
     }
-    
+
     // Add theme context if component has theme-specific variations.
     $component_type = $this->entityTypeManager
       ->getStorage('component_type')
       ->load($entity->bundle());
-    
+
     if ($component_type && $component_type->hasThemeVariations()) {
       $contexts[] = 'theme';
     }
-    
+
     // Add route context for components that vary by page.
     if ($this->componentVariesByRoute($entity)) {
       $contexts[] = 'route';
     }
-    
+
     return $contexts;
   }
 
@@ -262,7 +262,7 @@ class ComponentCacheManager {
     // Check if component has contextual fields.
     foreach ($entity->getFields() as $field_name => $field) {
       $field_type = $field->getFieldDefinition()->getType();
-      
+
       // Entity reference fields might pull contextual data.
       if (in_array($field_type, ['entity_reference', 'entity_reference_revisions'])) {
         $settings = $field->getFieldDefinition()->getSettings();
@@ -271,7 +271,7 @@ class ComponentCacheManager {
         }
       }
     }
-    
+
     return FALSE;
   }
 
@@ -285,17 +285,17 @@ class ComponentCacheManager {
    */
   public function warmCache(ComponentEntityInterface $entity, array $view_modes = ['default', 'full', 'teaser']) {
     $view_builder = $this->entityTypeManager->getViewBuilder('component');
-    
+
     foreach ($view_modes as $view_mode) {
       // Build the render array.
       $build = $view_builder->view($entity, $view_mode);
-      
+
       // Generate cache ID.
       $cid = $this->generateCacheId($entity, $view_mode);
-      
+
       // Get cache metadata.
       $metadata = $this->getCacheMetadata($entity);
-      
+
       // Cache the rendered output.
       $this->cacheRenderedComponent($cid, $build, $metadata);
     }
@@ -325,13 +325,12 @@ class ComponentCacheManager {
         'react' => 0,
       ],
     ];
-    
+
     // This would typically integrate with a monitoring system.
     // For now, return basic stats.
-    
     $component_storage = $this->entityTypeManager->getStorage('component');
     $stats['total_components'] = $component_storage->getQuery()->count()->execute();
-    
+
     return $stats;
   }
 

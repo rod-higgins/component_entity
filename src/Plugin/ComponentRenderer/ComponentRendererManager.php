@@ -55,7 +55,7 @@ class ComponentRendererManager extends DefaultPluginManager {
         return $renderer;
       }
     }
-    
+
     // Get the entity's configured render method.
     $render_method = $entity->getRenderMethod();
     if ($render_method) {
@@ -64,7 +64,7 @@ class ComponentRendererManager extends DefaultPluginManager {
         return $renderer;
       }
     }
-    
+
     // Fall back to the highest weighted enabled renderer.
     return $this->getDefaultRenderer();
   }
@@ -80,13 +80,13 @@ class ComponentRendererManager extends DefaultPluginManager {
    */
   public function getRendererByMethod($method) {
     $definitions = $this->getDefinitions();
-    
+
     foreach ($definitions as $plugin_id => $definition) {
       if (isset($definition['method']) && $definition['method'] === $method) {
         return $this->createInstance($plugin_id);
       }
     }
-    
+
     return NULL;
   }
 
@@ -98,21 +98,21 @@ class ComponentRendererManager extends DefaultPluginManager {
    */
   public function getDefaultRenderer() {
     $definitions = $this->getDefinitions();
-    
+
     // Sort by weight (higher weight = higher priority).
-    uasort($definitions, function($a, $b) {
+    uasort($definitions, function ($a, $b) {
       $weight_a = $a['weight'] ?? 0;
       $weight_b = $b['weight'] ?? 0;
       return $weight_b - $weight_a;
     });
-    
+
     // Return the first enabled renderer.
     foreach ($definitions as $plugin_id => $definition) {
       if ($definition['enabled'] ?? TRUE) {
         return $this->createInstance($plugin_id);
       }
     }
-    
+
     return NULL;
   }
 
@@ -128,13 +128,13 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function getAllRenderers($only_enabled = TRUE) {
     $renderers = [];
     $definitions = $this->getDefinitions();
-    
+
     foreach ($definitions as $plugin_id => $definition) {
       if (!$only_enabled || ($definition['enabled'] ?? TRUE)) {
         $renderers[$plugin_id] = $this->createInstance($plugin_id);
       }
     }
-    
+
     return $renderers;
   }
 
@@ -150,9 +150,9 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function getRenderersWithFeature($feature) {
     $renderers = [];
     $definitions = $this->getDefinitions();
-    
+
     $feature_key = 'supports_' . $feature;
-    
+
     foreach ($definitions as $plugin_id => $definition) {
       if (isset($definition[$feature_key]) && $definition[$feature_key]) {
         if ($definition['enabled'] ?? TRUE) {
@@ -160,7 +160,7 @@ class ComponentRendererManager extends DefaultPluginManager {
         }
       }
     }
-    
+
     return $renderers;
   }
 
@@ -176,16 +176,16 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function getRenderersForExtension($extension) {
     $renderers = [];
     $definitions = $this->getDefinitions();
-    
+
     foreach ($definitions as $plugin_id => $definition) {
-      if (isset($definition['file_extensions']) && 
+      if (isset($definition['file_extensions']) &&
           in_array($extension, $definition['file_extensions'])) {
         if ($definition['enabled'] ?? TRUE) {
           $renderers[$plugin_id] = $this->createInstance($plugin_id);
         }
       }
     }
-    
+
     return $renderers;
   }
 
@@ -201,7 +201,7 @@ class ComponentRendererManager extends DefaultPluginManager {
   public function getRendererOptions($only_enabled = TRUE) {
     $options = [];
     $definitions = $this->getDefinitions();
-    
+
     foreach ($definitions as $plugin_id => $definition) {
       if (!$only_enabled || ($definition['enabled'] ?? TRUE)) {
         $method = $definition['method'] ?? $plugin_id;
@@ -209,7 +209,7 @@ class ComponentRendererManager extends DefaultPluginManager {
         $options[$method] = $label;
       }
     }
-    
+
     return $options;
   }
 
@@ -228,18 +228,17 @@ class ComponentRendererManager extends DefaultPluginManager {
     if (!$this->hasDefinition($renderer_id)) {
       return FALSE;
     }
-    
+
     $renderer = $this->createInstance($renderer_id);
-    
+
     // Check if renderer is enabled.
     if (!$renderer->isEnabled()) {
       return FALSE;
     }
-    
+
     // Additional validation can be added here.
     // For example, checking if the component has required fields
     // or if the SDC component exists for the entity.
-    
     return TRUE;
   }
 
@@ -248,7 +247,7 @@ class ComponentRendererManager extends DefaultPluginManager {
    */
   public function clearCachedDefinitions() {
     parent::clearCachedDefinitions();
-    
+
     // Also clear any renderer-specific caches.
     \Drupal::cache()->invalidate('component_renderer:definitions');
   }

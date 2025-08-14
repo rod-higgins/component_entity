@@ -5,7 +5,6 @@ namespace Drupal\component_entity;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityViewBuilder;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
-use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 
 /**
@@ -18,15 +17,15 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   public function buildComponents(array &$build, array $entities, array $displays, $view_mode) {
     parent::buildComponents($build, $entities, $displays, $view_mode);
-    
+
     foreach ($entities as $id => $entity) {
       if (!$entity instanceof ComponentEntityInterface) {
         continue;
       }
-      
+
       // Determine render method.
       $render_method = $entity->getRenderMethod();
-      
+
       // Build the component based on render method.
       if ($render_method === 'react') {
         $this->buildReactComponent($build[$id], $entity, $displays[$entity->bundle()], $view_mode);
@@ -34,7 +33,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
       else {
         $this->buildTwigComponent($build[$id], $entity, $displays[$entity->bundle()], $view_mode);
       }
-      
+
       // Add cache metadata.
       $this->addCacheMetadata($build[$id], $entity);
     }
@@ -54,18 +53,18 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   protected function buildTwigComponent(array &$build, ComponentEntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
     $sdc_id = $this->getSdcId($entity->bundle());
-    
+
     if (!$sdc_id) {
       $build['#markup'] = $this->t('SDC component not found for bundle @bundle', [
         '@bundle' => $entity->bundle(),
       ]);
       return;
     }
-    
+
     // Extract props and slots.
     $props = $this->extractProps($entity, $display);
     $slots = $this->extractSlots($entity, $display);
-    
+
     // Build the SDC component render array.
     $component_build = [
       '#type' => 'component',
@@ -82,10 +81,10 @@ class ComponentViewBuilder extends EntityViewBuilder {
         'data-component-uuid' => $entity->uuid(),
       ],
     ];
-    
+
     // Merge with existing build.
     $build = array_merge($build, $component_build);
-    
+
     // Add component-specific libraries.
     $this->attachComponentLibraries($build, $entity);
   }
@@ -106,13 +105,13 @@ class ComponentViewBuilder extends EntityViewBuilder {
     // Use the React renderer service.
     $react_renderer = \Drupal::service('component_entity.react_renderer');
     $react_build = $react_renderer->render($entity, $view_mode);
-    
+
     // Merge with existing build.
     $build = array_merge($build, $react_build);
-    
+
     // Ensure React libraries are attached.
     $build['#attached']['library'][] = 'component_entity/react-renderer';
-    
+
     // Add component-specific React library if exists.
     $bundle = $entity->bundle();
     $component_library = "component_entity/component.$bundle";
@@ -134,66 +133,66 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   protected function extractProps(ComponentEntityInterface $entity, EntityViewDisplayInterface $display) {
     $props = [];
-    
+
     foreach ($entity->getFields() as $field_name => $field) {
       // Skip non-field properties.
       if (strpos($field_name, 'field_') !== 0) {
         continue;
       }
-      
+
       // Skip slot fields.
       if (strpos($field_name, '_slot') !== FALSE) {
         continue;
       }
-      
+
       // Skip hidden fields.
       if (!$display->getComponent($field_name)) {
         continue;
       }
-      
+
       // Convert field name to prop name.
       $prop_name = str_replace('field_', '', $field_name);
-      
+
       // Get field value based on type.
       $field_type = $field->getFieldDefinition()->getType();
-      
+
       switch ($field_type) {
         case 'json':
           $props[$prop_name] = json_decode($field->value, TRUE);
           break;
-          
+
         case 'boolean':
           $props[$prop_name] = (bool) $field->value;
           break;
-          
+
         case 'integer':
           $props[$prop_name] = (int) $field->value;
           break;
-          
+
         case 'decimal':
         case 'float':
           $props[$prop_name] = (float) $field->value;
           break;
-          
+
         case 'entity_reference':
         case 'entity_reference_revisions':
           $props[$prop_name] = $this->extractEntityReferenceValue($field);
           break;
-          
+
         case 'image':
           $props[$prop_name] = $this->extractImageValue($field);
           break;
-          
+
         case 'link':
           $props[$prop_name] = $this->extractLinkValue($field);
           break;
-          
+
         case 'text':
         case 'text_long':
         case 'text_with_summary':
           $props[$prop_name] = $this->extractTextValue($field);
           break;
-          
+
         default:
           // Simple value extraction.
           if (!$field->isEmpty()) {
@@ -202,7 +201,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
           break;
       }
     }
-    
+
     return $props;
   }
 
@@ -219,28 +218,28 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   protected function extractSlots(ComponentEntityInterface $entity, EntityViewDisplayInterface $display) {
     $slots = [];
-    
+
     foreach ($entity->getFields() as $field_name => $field) {
       // Only process slot fields.
       if (strpos($field_name, 'field_') !== 0 || strpos($field_name, '_slot') === FALSE) {
         continue;
       }
-      
+
       // Skip hidden fields.
       if (!$display->getComponent($field_name)) {
         continue;
       }
-      
+
       // Extract slot name.
       $slot_name = str_replace(['field_', '_slot'], '', $field_name);
-      
+
       if (!$field->isEmpty()) {
         // Build the field view.
         $field_build = $field->view($display->getComponent($field_name));
-        
+
         // Check field type for special handling.
         $field_type = $field->getFieldDefinition()->getType();
-        
+
         if ($field_type === 'entity_reference' || $field_type === 'entity_reference_revisions') {
           // For entity references, render the referenced entities.
           $slots[$slot_name] = $field_build;
@@ -259,7 +258,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
         }
       }
     }
-    
+
     return $slots;
   }
 
@@ -276,7 +275,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       if ($entity = $item->entity) {
@@ -289,9 +288,9 @@ class ComponentViewBuilder extends EntityViewBuilder {
         ];
       }
     }
-    
-    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() 
-      ? $values 
+
+    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple()
+      ? $values
       : ($values[0] ?? NULL);
   }
 
@@ -308,7 +307,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       if ($file = $item->entity) {
@@ -321,9 +320,9 @@ class ComponentViewBuilder extends EntityViewBuilder {
         ];
       }
     }
-    
-    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() 
-      ? $values 
+
+    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple()
+      ? $values
       : ($values[0] ?? NULL);
   }
 
@@ -340,7 +339,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       $values[] = [
@@ -348,9 +347,9 @@ class ComponentViewBuilder extends EntityViewBuilder {
         'title' => $item->title,
       ];
     }
-    
-    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() 
-      ? $values 
+
+    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple()
+      ? $values
       : ($values[0] ?? NULL);
   }
 
@@ -367,7 +366,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     if ($field->isEmpty()) {
       return NULL;
     }
-    
+
     $values = [];
     foreach ($field as $delta => $item) {
       // For formatted text, return processed value.
@@ -383,9 +382,9 @@ class ComponentViewBuilder extends EntityViewBuilder {
         $values[] = $item->value;
       }
     }
-    
-    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple() 
-      ? $values 
+
+    return $field->getFieldDefinition()->getFieldStorageDefinition()->isMultiple()
+      ? $values
       : ($values[0] ?? NULL);
   }
 
@@ -402,7 +401,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
     $component_type = \Drupal::entityTypeManager()
       ->getStorage('component_type')
       ->load($bundle);
-    
+
     return $component_type ? $component_type->get('sdc_id') : NULL;
   }
 
@@ -418,10 +417,10 @@ class ComponentViewBuilder extends EntityViewBuilder {
     // Use cache manager to get comprehensive cache metadata.
     $cache_manager = \Drupal::service('component_entity.cache_manager');
     $cache_metadata = $cache_manager->getCacheMetadata($entity);
-    
+
     // Apply cache metadata to build.
     $cache_metadata->applyTo($build);
-    
+
     // Add render method specific cache context.
     $build['#cache']['contexts'][] = 'component_render_method';
   }
@@ -436,13 +435,13 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   protected function attachComponentLibraries(array &$build, ComponentEntityInterface $entity) {
     $bundle = $entity->bundle();
-    
+
     // Attach CSS if exists.
     $css_library = "component_entity/component.$bundle.css";
     if ($this->libraryExists($css_library)) {
       $build['#attached']['library'][] = $css_library;
     }
-    
+
     // Attach JavaScript if exists (for Twig components with JS).
     $js_library = "component_entity/component.$bundle.js";
     if ($this->libraryExists($js_library)) {
@@ -470,15 +469,15 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   protected function getBuildDefaults(EntityInterface $entity, $view_mode) {
     $defaults = parent::getBuildDefaults($entity, $view_mode);
-    
+
     // Add component-specific theme suggestions.
     $defaults['#theme'] = 'component_entity';
-    
+
     // Add render method as a theme hook suggestion.
     if ($entity instanceof ComponentEntityInterface) {
       $render_method = $entity->getRenderMethod();
       $bundle = $entity->bundle();
-      
+
       $defaults['#theme'] = [
         'component_entity__' . $bundle . '__' . $view_mode . '__' . $render_method,
         'component_entity__' . $bundle . '__' . $render_method,
@@ -489,7 +488,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
         'component_entity',
       ];
     }
-    
+
     return $defaults;
   }
 
@@ -498,7 +497,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
    */
   public function view(EntityInterface $entity, $view_mode = 'full', $langcode = NULL) {
     $build = parent::view($entity, $view_mode, $langcode);
-    
+
     // Add contextual links.
     if ($entity instanceof ComponentEntityInterface && $entity->access('update')) {
       $build['#contextual_links']['component'] = [
@@ -506,7 +505,7 @@ class ComponentViewBuilder extends EntityViewBuilder {
         'metadata' => ['changed' => $entity->getChangedTime()],
       ];
     }
-    
+
     return $build;
   }
 

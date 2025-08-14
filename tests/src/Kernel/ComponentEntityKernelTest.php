@@ -43,7 +43,7 @@ class ComponentEntityKernelTest extends EntityKernelTestBase {
     // Install entity schemas.
     $this->installEntitySchema('component');
     $this->installEntitySchema('user');
-    
+
     // Install config.
     $this->installConfig(['component_entity']);
 
@@ -210,7 +210,7 @@ class ComponentEntityKernelTest extends EntityKernelTestBase {
       'ssr' => FALSE,
     ];
     $component->setReactConfig($config);
-    
+
     $saved_config = $component->getReactConfig();
     $this->assertEquals('partial', $saved_config['hydration']);
     $this->assertTrue($saved_config['progressive']);

@@ -17,32 +17,32 @@ use Psr\Log\LoggerInterface;
 class SdcGeneratorService {
 
   /**
-   * @var EntityFieldManagerInterface
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
   protected $entityFieldManager;
 
   /**
-   * @var EntityTypeManagerInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
   /**
-   * @var FileSystemInterface
+   * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
-   * @var ModuleHandlerInterface
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
 
   /**
-   * @var ThemeHandlerInterface
+   * @var \Drupal\Core\Extension\ThemeHandlerInterface
    */
   protected $themeHandler;
 
   /**
-   * @var LoggerInterface
+   * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
@@ -55,7 +55,7 @@ class SdcGeneratorService {
     FileSystemInterface $file_system,
     ModuleHandlerInterface $module_handler,
     ThemeHandlerInterface $theme_handler,
-    LoggerInterface $logger
+    LoggerInterface $logger,
   ) {
     $this->entityFieldManager = $entity_field_manager;
     $this->entityTypeManager = $entity_type_manager;
@@ -89,7 +89,7 @@ class SdcGeneratorService {
     try {
       // Get the component directory path.
       $component_path = $this->getComponentPath($component_type, $options);
-      
+
       // Check if file exists and overwrite is false.
       $yml_file = $component_path . '/' . $component_type->id() . '.component.yml';
       if (file_exists($yml_file) && !$options['overwrite']) {
@@ -101,45 +101,46 @@ class SdcGeneratorService {
 
       // Build the component definition.
       $definition = $this->buildComponentDefinition($component_type);
-      
+
       // Convert to YAML.
       $yaml_content = Yaml::dump($definition, 4, 2);
-      
+
       // Add header comment.
       $header = "# Auto-generated SDC component definition\n";
       $header .= "# Generated from component type: " . $component_type->id() . "\n";
       $header .= "# Generated on: " . date('Y-m-d H:i:s') . "\n\n";
       $yaml_content = $header . $yaml_content;
-      
+
       // Ensure directory exists.
       $this->fileSystem->prepareDirectory($component_path, FileSystemInterface::CREATE_DIRECTORY);
-      
+
       // Write the file.
       $result = file_put_contents($yml_file, $yaml_content);
-      
+
       if ($result !== FALSE) {
         $this->logger->info('Generated component.yml for @type at @path', [
           '@type' => $component_type->id(),
           '@path' => $yml_file,
         ]);
-        
+
         return [
           'success' => TRUE,
           'message' => 'Successfully generated component.yml',
           'path' => $yml_file,
         ];
       }
-      
+
       return [
         'success' => FALSE,
         'message' => 'Failed to write component.yml file',
       ];
-      
-    } catch (\Exception $e) {
+
+    }
+    catch (\Exception $e) {
       $this->logger->error('Error generating component.yml: @error', [
         '@error' => $e->getMessage(),
       ]);
-      
+
       return [
         'success' => FALSE,
         'message' => 'Error: ' . $e->getMessage(),
@@ -183,7 +184,7 @@ class SdcGeneratorService {
         'react' => $rendering_config['react_enabled'] ?? FALSE,
         'default' => $rendering_config['default_method'] ?? 'twig',
       ];
-      
+
       if (!empty($rendering_config['react_library'])) {
         $definition['rendering']['react_library'] = $rendering_config['react_library'];
       }
@@ -215,24 +216,24 @@ class SdcGeneratorService {
   protected function buildPropsFromFields($component_type) {
     $props = [];
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $component_type->id());
-    
+
     foreach ($fields as $field_name => $field_definition) {
       // Skip base fields and slot fields.
       if ($this->shouldSkipField($field_definition)) {
         continue;
       }
-      
+
       $prop_name = $this->getPropName($field_definition);
       $props[$prop_name] = $this->buildPropSchema($field_definition);
     }
-    
+
     return $props;
   }
 
   /**
    * Builds a single prop schema from a field definition.
    *
-   * @param FieldDefinitionInterface $field_definition
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
    *   The field definition.
    *
    * @return array
@@ -243,21 +244,21 @@ class SdcGeneratorService {
       'title' => $field_definition->getLabel(),
       'description' => $field_definition->getDescription() ?: '',
     ];
-    
+
     // Get type from third-party settings or field type.
     $sdc_type = $field_definition->getThirdPartySetting('component_entity', 'sdc_prop_type');
     if (!$sdc_type) {
       $sdc_type = $this->mapFieldTypeToSdcType($field_definition->getType());
     }
     $schema['type'] = $sdc_type;
-    
+
     // Add required flag.
-    $is_required = $field_definition->getThirdPartySetting('component_entity', 'sdc_required') 
+    $is_required = $field_definition->getThirdPartySetting('component_entity', 'sdc_required')
       ?? $field_definition->isRequired();
     if ($is_required) {
       $schema['required'] = TRUE;
     }
-    
+
     // Add default value.
     $default_value = $field_definition->getThirdPartySetting('component_entity', 'sdc_default');
     if (!$default_value) {
@@ -266,10 +267,10 @@ class SdcGeneratorService {
     if ($default_value) {
       $schema['default'] = $this->formatDefaultValue($default_value, $sdc_type);
     }
-    
+
     // Add constraints based on field settings.
     $this->addFieldConstraints($schema, $field_definition);
-    
+
     return $schema;
   }
 
@@ -309,7 +310,7 @@ class SdcGeneratorService {
       'map' => 'object',
       'json' => 'object',
     ];
-    
+
     return $mapping[$field_type] ?? 'string';
   }
 
@@ -325,12 +326,12 @@ class SdcGeneratorService {
   protected function buildSlotsFromFields($component_type) {
     $slots = [];
     $fields = $this->entityFieldManager->getFieldDefinitions('component', $component_type->id());
-    
+
     foreach ($fields as $field_name => $field_definition) {
       // Check if this is a slot field.
-      if (strpos($field_name, '_slot') !== FALSE || 
+      if (strpos($field_name, '_slot') !== FALSE ||
           $field_definition->getThirdPartySetting('component_entity', 'is_slot', FALSE)) {
-        
+
         $slot_name = str_replace(['field_', '_slot'], '', $field_name);
         $slots[$slot_name] = [
           'title' => $field_definition->getLabel(),
@@ -339,7 +340,7 @@ class SdcGeneratorService {
         ];
       }
     }
-    
+
     return $slots;
   }
 
@@ -358,18 +359,19 @@ class SdcGeneratorService {
     if ($options['target'] === 'theme') {
       $theme = $this->themeHandler->getTheme($options['name']);
       $base_path = $theme->getPath();
-    } else {
+    }
+    else {
       $module = $this->moduleHandler->getModule($options['name']);
       $base_path = $module->getPath();
     }
-    
+
     return $base_path . '/components/' . $component_type->id();
   }
 
   /**
    * Determines if a field should be skipped for prop generation.
    *
-   * @param FieldDefinitionInterface $field_definition
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
    *   The field definition.
    *
    * @return bool
@@ -382,28 +384,28 @@ class SdcGeneratorService {
       'created', 'changed', 'uid', 'title', 'revision_timestamp',
       'revision_uid', 'revision_log', 'render_method', 'react_config',
     ];
-    
+
     if (in_array($field_definition->getName(), $base_fields)) {
       return TRUE;
     }
-    
+
     // Skip computed fields.
     if ($field_definition->isComputed()) {
       return TRUE;
     }
-    
+
     // Skip slot fields (handled separately).
     if (strpos($field_definition->getName(), '_slot') !== FALSE) {
       return TRUE;
     }
-    
+
     return FALSE;
   }
 
   /**
    * Gets the prop name for a field.
    *
-   * @param FieldDefinitionInterface $field_definition
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
    *   The field definition.
    *
    * @return string
@@ -415,13 +417,13 @@ class SdcGeneratorService {
     if ($custom_name) {
       return $custom_name;
     }
-    
+
     // Remove 'field_' prefix.
     $field_name = $field_definition->getName();
     if (strpos($field_name, 'field_') === 0) {
       return substr($field_name, 6);
     }
-    
+
     return $field_name;
   }
 
@@ -440,18 +442,18 @@ class SdcGeneratorService {
     if (is_array($value) && isset($value[0]['value'])) {
       $value = $value[0]['value'];
     }
-    
+
     switch ($type) {
       case 'number':
         return is_numeric($value) ? (float) $value : 0;
-      
+
       case 'boolean':
         return (bool) $value;
-      
+
       case 'object':
       case 'array':
         return is_string($value) ? json_decode($value, TRUE) : $value;
-      
+
       default:
         return (string) $value;
     }
@@ -462,24 +464,24 @@ class SdcGeneratorService {
    *
    * @param array &$schema
    *   The prop schema array.
-   * @param FieldDefinitionInterface $field_definition
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
    *   The field definition.
    */
   protected function addFieldConstraints(&$schema, FieldDefinitionInterface $field_definition) {
     $field_settings = $field_definition->getSettings();
-    
+
     // Add enum for list fields.
     if (in_array($field_definition->getType(), ['list_string', 'list_integer', 'list_float'])) {
       if (!empty($field_settings['allowed_values'])) {
         $schema['enum'] = array_keys($field_settings['allowed_values']);
       }
     }
-    
+
     // Add max length for string fields.
     if (isset($field_settings['max_length'])) {
       $schema['maxLength'] = $field_settings['max_length'];
     }
-    
+
     // Add min/max for numeric fields.
     if (isset($field_settings['min'])) {
       $schema['minimum'] = $field_settings['min'];
@@ -487,18 +489,18 @@ class SdcGeneratorService {
     if (isset($field_settings['max'])) {
       $schema['maximum'] = $field_settings['max'];
     }
-    
+
     // Add format for specific field types.
     switch ($field_definition->getType()) {
       case 'email':
         $schema['format'] = 'email';
         break;
-      
+
       case 'uri':
       case 'link':
         $schema['format'] = 'uri';
         break;
-      
+
       case 'datetime':
         $schema['format'] = 'date-time';
         break;
@@ -517,16 +519,19 @@ class SdcGeneratorService {
   protected function getComponentCategories($component_type) {
     // This could be extended to read from a taxonomy or config.
     $categories = ['Components'];
-    
+
     // Add category based on component type.
     if (strpos($component_type->id(), 'hero') !== FALSE) {
       $categories[] = 'Heroes';
-    } elseif (strpos($component_type->id(), 'card') !== FALSE) {
+    }
+    elseif (strpos($component_type->id(), 'card') !== FALSE) {
       $categories[] = 'Cards';
-    } elseif (strpos($component_type->id(), 'cta') !== FALSE) {
+    }
+    elseif (strpos($component_type->id(), 'cta') !== FALSE) {
       $categories[] = 'Call to Action';
     }
-    
+
     return $categories;
   }
+
 }

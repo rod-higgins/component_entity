@@ -60,7 +60,7 @@ class ComponentListBuilder extends EntityListBuilder {
     $header['status'] = $this->t('Status');
     $header['author'] = $this->t('Author');
     $header['changed'] = $this->t('Updated');
-    
+
     return $header + parent::buildHeader();
   }
 
@@ -70,14 +70,14 @@ class ComponentListBuilder extends EntityListBuilder {
   public function buildRow(EntityInterface $entity) {
     /** @var \Drupal\component_entity\Entity\ComponentEntityInterface $entity */
     $row['id'] = $entity->id();
-    
+
     // Component name with link to view.
     $row['name'] = Link::createFromRoute(
       $entity->label(),
       'entity.component.canonical',
       ['component' => $entity->id()]
     );
-    
+
     // Component type.
     $component_type = $entity->get('type')->entity;
     if ($component_type) {
@@ -90,7 +90,7 @@ class ComponentListBuilder extends EntityListBuilder {
     else {
       $row['type'] = $entity->bundle();
     }
-    
+
     // Render method with badge styling.
     $render_method = $entity->getRenderMethod();
     $row['render_method'] = [
@@ -102,10 +102,10 @@ class ComponentListBuilder extends EntityListBuilder {
         ],
       ],
     ];
-    
+
     // Publishing status.
     $row['status'] = $entity->isPublished() ? $this->t('Published') : $this->t('Unpublished');
-    
+
     // Author information.
     $owner = $entity->getOwner();
     if ($owner) {
@@ -119,10 +119,10 @@ class ComponentListBuilder extends EntityListBuilder {
     else {
       $row['author'] = $this->t('Anonymous');
     }
-    
+
     // Last updated time.
     $row['changed'] = $this->dateFormatter->format($entity->getChangedTime(), 'short');
-    
+
     return $row + parent::buildRow($entity);
   }
 
@@ -131,13 +131,13 @@ class ComponentListBuilder extends EntityListBuilder {
    */
   public function render() {
     $build = parent::render();
-    
+
     // Add component entity admin library for styling.
     $build['#attached']['library'][] = 'component_entity/admin';
-    
+
     // Add contextual filter form.
     $build['filters'] = $this->buildFilterForm();
-    
+
     // Add help text if no components exist.
     if (empty($this->load())) {
       $build['empty'] = [
@@ -147,12 +147,12 @@ class ComponentListBuilder extends EntityListBuilder {
           '#markup' => $this->t('No components have been created yet.'),
         ],
       ];
-      
+
       // Add link to create first component if user has permission.
       $account = \Drupal::currentUser();
       $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo('component');
       $create_links = [];
-      
+
       foreach ($bundles as $bundle_id => $bundle_info) {
         if ($account->hasPermission('create ' . $bundle_id . ' component')) {
           $create_links[] = Link::createFromRoute(
@@ -162,7 +162,7 @@ class ComponentListBuilder extends EntityListBuilder {
           )->toString();
         }
       }
-      
+
       if (!empty($create_links)) {
         $build['empty']['create'] = [
           '#type' => 'item',
@@ -172,7 +172,7 @@ class ComponentListBuilder extends EntityListBuilder {
         ];
       }
     }
-    
+
     return $build;
   }
 
@@ -189,14 +189,14 @@ class ComponentListBuilder extends EntityListBuilder {
       '#open' => FALSE,
       '#attributes' => ['class' => ['component-list-filters']],
     ];
-    
+
     // Component type filter.
     $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo('component');
     $type_options = ['all' => $this->t('- All types -')];
     foreach ($bundles as $bundle_id => $bundle_info) {
       $type_options[$bundle_id] = $bundle_info['label'];
     }
-    
+
     $form['type'] = [
       '#type' => 'select',
       '#title' => $this->t('Component type'),
@@ -207,7 +207,7 @@ class ComponentListBuilder extends EntityListBuilder {
         'data-component-filter' => 'type',
       ],
     ];
-    
+
     // Render method filter.
     $form['render_method'] = [
       '#type' => 'select',
@@ -223,7 +223,7 @@ class ComponentListBuilder extends EntityListBuilder {
         'data-component-filter' => 'render_method',
       ],
     ];
-    
+
     // Status filter.
     $form['status'] = [
       '#type' => 'select',
@@ -239,7 +239,7 @@ class ComponentListBuilder extends EntityListBuilder {
         'data-component-filter' => 'status',
       ],
     ];
-    
+
     // Search field.
     $form['search'] = [
       '#type' => 'search',
@@ -250,7 +250,7 @@ class ComponentListBuilder extends EntityListBuilder {
         'data-component-filter' => 'search',
       ],
     ];
-    
+
     // Filter actions.
     $form['actions'] = [
       '#type' => 'actions',
@@ -265,10 +265,10 @@ class ComponentListBuilder extends EntityListBuilder {
         '#attributes' => ['class' => ['component-filter-reset']],
       ],
     ];
-    
+
     // Add JavaScript for client-side filtering.
     $form['#attached']['library'][] = 'component_entity/list-filters';
-    
+
     return $form;
   }
 
@@ -279,37 +279,37 @@ class ComponentListBuilder extends EntityListBuilder {
     $query = $this->getStorage()->getQuery()
       ->accessCheck(TRUE)
       ->sort('changed', 'DESC');
-    
+
     // Add filters from request.
     $request = \Drupal::request();
-    
+
     if ($type = $request->query->get('type')) {
       if ($type !== 'all') {
         $query->condition('type', $type);
       }
     }
-    
+
     if ($render_method = $request->query->get('render_method')) {
       if ($render_method !== 'all') {
         $query->condition('render_method', $render_method);
       }
     }
-    
+
     if ($status = $request->query->get('status')) {
       if ($status !== 'all') {
         $query->condition('status', $status);
       }
     }
-    
+
     if ($search = $request->query->get('search')) {
       $query->condition('name', $search, 'CONTAINS');
     }
-    
+
     // Only add the pager if a limit is specified.
     if ($this->limit) {
       $query->pager($this->limit);
     }
-    
+
     return $query->execute();
   }
 
@@ -318,7 +318,7 @@ class ComponentListBuilder extends EntityListBuilder {
    */
   public function getDefaultOperations(EntityInterface $entity) {
     $operations = parent::getDefaultOperations($entity);
-    
+
     // Add preview operation.
     if ($entity->access('preview') && $entity->hasLinkTemplate('preview')) {
       $operations['preview'] = [
@@ -327,7 +327,7 @@ class ComponentListBuilder extends EntityListBuilder {
         'url' => $this->ensureDestination($entity->toUrl('preview')),
       ];
     }
-    
+
     // Add duplicate operation.
     if ($entity->access('create')) {
       $operations['duplicate'] = [
@@ -338,7 +338,7 @@ class ComponentListBuilder extends EntityListBuilder {
         ])),
       ];
     }
-    
+
     // Add revision operations if applicable.
     if ($entity->getEntityType()->isRevisionable() && $entity->access('view_revision')) {
       $operations['revisions'] = [
@@ -347,7 +347,7 @@ class ComponentListBuilder extends EntityListBuilder {
         'url' => $entity->toUrl('version-history'),
       ];
     }
-    
+
     return $operations;
   }
 

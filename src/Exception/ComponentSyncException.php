@@ -75,7 +75,7 @@ class ComponentSyncException extends \Exception {
     $error_type = self::ERROR_CONFIGURATION,
     array $context = [],
     $code = 0,
-    \Throwable $previous = NULL
+    ?\Throwable $previous = NULL,
   ) {
     parent::__construct($message, $code, $previous);
     $this->componentId = $component_id;
@@ -102,7 +102,7 @@ class ComponentSyncException extends \Exception {
       $component_id,
       $reason
     );
-    
+
     return new static(
       $message,
       $component_id,
@@ -133,9 +133,9 @@ class ComponentSyncException extends \Exception {
       $field_name,
       $reason
     );
-    
+
     $context['field_name'] = $field_name;
-    
+
     return new static(
       $message,
       $component_id,
@@ -166,7 +166,7 @@ class ComponentSyncException extends \Exception {
       $bundle,
       $reason
     );
-    
+
     return new static(
       $message,
       $component_id,
@@ -194,9 +194,9 @@ class ComponentSyncException extends \Exception {
       $component_id,
       $dependency
     );
-    
+
     $context['dependency'] = $dependency;
-    
+
     return new static(
       $message,
       $component_id,
@@ -223,13 +223,13 @@ class ComponentSyncException extends \Exception {
       'Permission denied for operation "%s"',
       $operation
     );
-    
+
     if ($component_id) {
       $message .= sprintf(' on component "%s"', $component_id);
     }
-    
+
     $context['operation'] = $operation;
-    
+
     return new static(
       $message,
       $component_id,
@@ -252,20 +252,20 @@ class ComponentSyncException extends \Exception {
    * @return static
    */
   public static function validationError($component_id, array $violations, array $context = []) {
-    $violation_messages = array_map(function($violation) {
+    $violation_messages = array_map(function ($violation) {
       return is_object($violation) && method_exists($violation, 'getMessage')
         ? $violation->getMessage()
         : (string) $violation;
     }, $violations);
-    
+
     $message = sprintf(
       'Validation failed for component "%s": %s',
       $component_id,
       implode('; ', $violation_messages)
     );
-    
+
     $context['violations'] = $violations;
-    
+
     return new static(
       $message,
       $component_id,
@@ -354,22 +354,22 @@ class ComponentSyncException extends \Exception {
     switch ($this->errorType) {
       case self::ERROR_INVALID_DEFINITION:
         return t('The component definition is invalid. Please check the component configuration.');
-        
+
       case self::ERROR_FIELD_MAPPING:
         return t('Unable to map component properties to fields. Please review the field configuration.');
-        
+
       case self::ERROR_BUNDLE_CONFLICT:
         return t('There is a naming conflict with an existing component type.');
-        
+
       case self::ERROR_PERMISSION_DENIED:
         return t('You do not have permission to perform this operation.');
-        
+
       case self::ERROR_MISSING_DEPENDENCY:
         return t('Required dependencies are missing. Please install the necessary modules.');
-        
+
       case self::ERROR_VALIDATION:
         return t('The component data is invalid. Please check the provided values.');
-        
+
       case self::ERROR_CONFIGURATION:
       default:
         return t('A configuration error occurred during component synchronization.');

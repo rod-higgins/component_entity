@@ -193,11 +193,11 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
     if (!in_array($method, ['twig', 'react'])) {
       throw new \InvalidArgumentException('Invalid render method. Must be "twig" or "react".');
     }
-    
+
     $config = $this->getRenderingConfiguration();
     $config['default_method'] = $method;
     $this->setRenderingConfiguration($config);
-    
+
     return $this;
   }
 
@@ -223,7 +223,7 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
     $config = $this->getRenderingConfiguration();
     $config['react_library'] = $library;
     $this->setRenderingConfiguration($config);
-    
+
     return $this;
   }
 
@@ -285,15 +285,15 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
    */
   public function getAvailableRenderMethods() {
     $methods = [];
-    
+
     if ($this->isTwigEnabled()) {
       $methods['twig'] = t('Twig (Server-side)');
     }
-    
+
     if ($this->isReactEnabled()) {
       $methods['react'] = t('React (Client-side)');
     }
-    
+
     return $methods;
   }
 
@@ -335,7 +335,7 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
     if ($update) {
       // Clear component cache for this bundle.
       \Drupal::service('component_entity.cache_manager')->invalidateBundleCache($this->id());
-      
+
       // Clear field definitions cache.
       \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
     }
@@ -386,11 +386,11 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
     // Check if a compiled React component exists.
     $module_path = \Drupal::service('extension.list.module')->getPath('component_entity');
     $js_file = $module_path . '/dist/js/' . $this->id() . '.component.js';
-    
+
     if (file_exists($js_file)) {
       return 'component_entity/component.' . $this->id();
     }
-    
+
     return NULL;
   }
 
@@ -401,7 +401,7 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
     if (!$this->sdc_id) {
       return NULL;
     }
-    
+
     try {
       $component_manager = \Drupal::service('plugin.manager.sdc');
       return $component_manager->getDefinition($this->sdc_id);
@@ -419,32 +419,32 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
     if (!$definition) {
       return FALSE;
     }
-    
+
     // Update description.
     if (isset($definition->metadata->description)) {
       $this->setDescription($definition->metadata->description);
     }
-    
+
     // Update checksum.
     $checksum = md5(serialize($definition->metadata));
     $this->setChecksum($checksum);
-    
+
     // Check for React component.
     $module_path = \Drupal::service('extension.list.module')->getPath('component_entity');
     $jsx_file = $module_path . '/components/' . $this->id() . '/' . $this->id() . '.jsx';
     $tsx_file = $module_path . '/components/' . $this->id() . '/' . $this->id() . '.tsx';
-    
+
     if (file_exists($jsx_file) || file_exists($tsx_file)) {
       $config = $this->getRenderingConfiguration();
       $config['react_enabled'] = TRUE;
       $this->setRenderingConfiguration($config);
     }
-    
+
     $this->save();
-    
+
     // Trigger field sync.
     \Drupal::service('component_entity.sync')->syncComponentFields($this->id(), $definition);
-    
+
     return TRUE;
   }
 
@@ -457,7 +457,7 @@ class ComponentType extends ConfigEntityBundleBase implements ComponentTypeInter
       ->condition('type', $this->id())
       ->count()
       ->execute();
-    
+
     return $count > 0;
   }
 

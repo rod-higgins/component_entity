@@ -9,9 +9,6 @@ use Drush\Commands\DrushCommands;
 use Drush\Attributes\Command;
 use Drush\Attributes\Argument;
 use Drush\Attributes\Option;
-use Drush\Attributes\Usage;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 
 /**
@@ -53,7 +50,7 @@ class ComponentEntityCommands extends DrushCommands {
   public function __construct(
     ComponentSyncService $sync_service,
     EntityTypeManagerInterface $entity_type_manager,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     parent::__construct();
     $this->syncService = $sync_service;
@@ -88,17 +85,17 @@ class ComponentEntityCommands extends DrushCommands {
   public function sync($options = ['force' => FALSE, 'dry-run' => FALSE]) {
     $force = $options['force'];
     $dry_run = $options['dry-run'];
-    
+
     $this->io()->title('Component Entity Sync');
-    
+
     if ($dry_run) {
       $this->io()->warning('DRY RUN MODE - No changes will be made');
     }
-    
+
     // Perform sync.
     if (!$dry_run) {
       $results = $this->syncService->syncComponents($force);
-      
+
       // Display results.
       if (!empty($results['created'])) {
         $this->io()->success(sprintf('Created %d new component types:', count($results['created'])));
@@ -106,32 +103,32 @@ class ComponentEntityCommands extends DrushCommands {
           $this->io()->writeln('  - ' . $component);
         }
       }
-      
+
       if (!empty($results['updated'])) {
         $this->io()->success(sprintf('Updated %d component types:', count($results['updated'])));
         foreach ($results['updated'] as $component) {
           $this->io()->writeln('  - ' . $component);
         }
       }
-      
+
       if (!empty($results['skipped'])) {
         $this->io()->note(sprintf('Skipped %d unchanged components', count($results['skipped'])));
       }
-      
+
       if (!empty($results['errors'])) {
         $this->io()->error(sprintf('Failed to sync %d components:', count($results['errors'])));
         foreach ($results['errors'] as $component) {
           $this->io()->writeln('  - ' . $component);
         }
       }
-      
+
       $this->io()->success('Component sync completed');
     }
     else {
       // Dry run - just show what would be synced.
       $components = \Drupal::service('plugin.manager.sdc')->getAllComponents();
       $this->io()->writeln(sprintf('Found %d SDC components', count($components)));
-      
+
       foreach ($components as $id => $component) {
         $this->io()->writeln('  - ' . $id . ' (' . ($component->metadata->name ?? 'No name') . ')');
       }
@@ -152,6 +149,7 @@ class ComponentEntityCommands extends DrushCommands {
    * @default-fields id,label,count,render_methods
    * @usage component:list-types
    *   List all component types.
+   *
    * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
    */
   #[Command(
@@ -162,7 +160,7 @@ class ComponentEntityCommands extends DrushCommands {
     $types = $this->entityTypeManager
       ->getStorage('component_type')
       ->loadMultiple();
-    
+
     $rows = [];
     foreach ($types as $type) {
       $component_count = $this->entityTypeManager
@@ -172,7 +170,7 @@ class ComponentEntityCommands extends DrushCommands {
         ->accessCheck(FALSE)
         ->count()
         ->execute();
-      
+
       $render_methods = [];
       $rendering = $type->get('rendering') ?? [];
       if (!empty($rendering['twig_enabled'])) {
@@ -181,7 +179,7 @@ class ComponentEntityCommands extends DrushCommands {
       if (!empty($rendering['react_enabled'])) {
         $render_methods[] = 'React';
       }
-      
+
       $rows[] = [
         'id' => $type->id(),
         'label' => $type->label(),
@@ -190,7 +188,7 @@ class ComponentEntityCommands extends DrushCommands {
         'render_methods' => implode(', ', $render_methods),
       ];
     }
-    
+
     return new RowsOfFields($rows);
   }
 
@@ -216,6 +214,7 @@ class ComponentEntityCommands extends DrushCommands {
    *   List all hero banner components.
    * @usage component:list --render-method=react
    *   List all React-rendered components.
+   *
    * @return \Consolidation\OutputFormatters\StructuredData\RowsOfFields
    */
   #[Command(
@@ -239,26 +238,26 @@ class ComponentEntityCommands extends DrushCommands {
       ->getStorage('component')
       ->getQuery()
       ->accessCheck(FALSE);
-    
+
     if ($options['type']) {
       $query->condition('type', $options['type']);
     }
-    
+
     if ($options['render-method']) {
       $query->condition('render_method', $options['render-method']);
     }
-    
+
     if ($options['limit']) {
       $query->range(0, $options['limit']);
     }
-    
+
     $query->sort('changed', 'DESC');
-    
+
     $ids = $query->execute();
     $components = $this->entityTypeManager
       ->getStorage('component')
       ->loadMultiple($ids);
-    
+
     $rows = [];
     foreach ($components as $component) {
       $rows[] = [
@@ -270,7 +269,7 @@ class ComponentEntityCommands extends DrushCommands {
         'changed' => date('Y-m-d H:i', $component->getChangedTime()),
       ];
     }
-    
+
     return new RowsOfFields($rows);
   }
 
@@ -313,19 +312,19 @@ class ComponentEntityCommands extends DrushCommands {
     $component_type = $this->entityTypeManager
       ->getStorage('component_type')
       ->load($type);
-    
+
     if (!$component_type) {
       $this->io()->error(sprintf('Component type "%s" does not exist', $type));
       return 1;
     }
-    
+
     // Create component entity.
     $values = [
       'type' => $type,
       'name' => $name,
       'render_method' => $options['render-method'],
     ];
-    
+
     // Parse additional field data if provided.
     if ($options['data']) {
       $data = json_decode($options['data'], TRUE);
@@ -333,20 +332,20 @@ class ComponentEntityCommands extends DrushCommands {
         $this->io()->error('Invalid JSON data provided');
         return 1;
       }
-      
+
       foreach ($data as $field => $value) {
         $values['field_' . $field] = $value;
       }
     }
-    
+
     $component = $this->entityTypeManager
       ->getStorage('component')
       ->create($values);
-    
+
     $component->save();
-    
+
     $this->io()->success(sprintf('Created component "%s" (ID: %d)', $name, $component->id()));
-    
+
     return 0;
   }
 
@@ -376,29 +375,29 @@ class ComponentEntityCommands extends DrushCommands {
     $component = $this->entityTypeManager
       ->getStorage('component')
       ->load($id);
-    
+
     if (!$component) {
       $this->io()->error(sprintf('Component with ID %d not found', $id));
       return 1;
     }
-    
+
     if (!$options['force']) {
       $confirm = $this->io()->confirm(
-        sprintf('Are you sure you want to delete component "%s" (ID: %d)?', 
-          $component->label(), 
+        sprintf('Are you sure you want to delete component "%s" (ID: %d)?',
+          $component->label(),
           $component->id()
         )
       );
-      
+
       if (!$confirm) {
         $this->io()->note('Delete cancelled');
         return 0;
       }
     }
-    
+
     $component->delete();
     $this->io()->success(sprintf('Deleted component ID %d', $id));
-    
+
     return 0;
   }
 
@@ -428,12 +427,12 @@ class ComponentEntityCommands extends DrushCommands {
     $component = $this->entityTypeManager
       ->getStorage('component')
       ->load($id);
-    
+
     if (!$component) {
       $this->io()->error(sprintf('Component with ID %d not found', $id));
       return 1;
     }
-    
+
     $export = [
       'id' => $component->id(),
       'uuid' => $component->uuid(),
@@ -445,20 +444,20 @@ class ComponentEntityCommands extends DrushCommands {
       'changed' => $component->getChangedTime(),
       'fields' => [],
     ];
-    
+
     // Export field values.
     foreach ($component->getFields() as $field_name => $field) {
       if (strpos($field_name, 'field_') === 0 && !$field->isEmpty()) {
         $export['fields'][$field_name] = $field->getValue();
       }
     }
-    
+
     // Include field configuration if requested.
     if ($options['include-fields']) {
       $export['field_config'] = [];
       $fields = \Drupal::service('entity_field.manager')
         ->getFieldDefinitions('component', $component->bundle());
-      
+
       foreach ($fields as $field_name => $field_definition) {
         if (strpos($field_name, 'field_') === 0) {
           $export['field_config'][$field_name] = [
@@ -470,9 +469,9 @@ class ComponentEntityCommands extends DrushCommands {
         }
       }
     }
-    
+
     $this->io()->writeln(json_encode($export, JSON_PRETTY_PRINT));
-    
+
     return 0;
   }
 
@@ -503,48 +502,48 @@ class ComponentEntityCommands extends DrushCommands {
   public function build($options = ['watch' => FALSE, 'production' => FALSE]) {
     $module_path = \Drupal::service('extension.list.module')
       ->getPath('component_entity');
-    
+
     $this->io()->title('Building React Components');
-    
+
     // Check if npm is installed.
     $npm_check = shell_exec('npm --version 2>&1');
     if (!$npm_check) {
       $this->io()->error('npm is not installed. Please install Node.js and npm.');
       return 1;
     }
-    
+
     // Change to module directory.
     chdir($module_path);
-    
+
     // Install dependencies if needed.
     if (!file_exists('node_modules')) {
       $this->io()->section('Installing dependencies...');
       $this->io()->writeln(shell_exec('npm install 2>&1'));
     }
-    
+
     // Build command.
     $command = $options['watch'] ? 'npm run watch' : 'npm run build';
-    
+
     if ($options['production']) {
       $command = 'npm run build:production';
     }
-    
+
     $this->io()->section('Building components...');
-    
+
     if ($options['watch']) {
       $this->io()->note('Watching for changes. Press Ctrl+C to stop.');
     }
-    
+
     // Execute build.
     passthru($command, $return_code);
-    
+
     if ($return_code === 0) {
       $this->io()->success('Build completed successfully');
     }
     else {
       $this->io()->error('Build failed');
     }
-    
+
     return $return_code;
   }
 
@@ -569,7 +568,7 @@ class ComponentEntityCommands extends DrushCommands {
   )]
   public function cacheClear($options = ['type' => NULL]) {
     $cache_manager = \Drupal::service('component_entity.cache_manager');
-    
+
     if ($options['type']) {
       $cache_manager->invalidateBundleCache($options['type']);
       $this->io()->success(sprintf('Cleared caches for component type: %s', $options['type']));
@@ -578,7 +577,7 @@ class ComponentEntityCommands extends DrushCommands {
       $cache_manager->clearAllComponentCaches();
       $this->io()->success('Cleared all component caches');
     }
-    
+
     return 0;
   }
 

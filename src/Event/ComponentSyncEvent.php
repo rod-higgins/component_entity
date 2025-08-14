@@ -107,7 +107,7 @@ class ComponentSyncEvent extends Event {
    *   - created: Array of created component types
    *   - updated: Array of updated component types
    *   - skipped: Array of skipped components
-   *   - errors: Array of errors
+   *   - errors: Array of errors.
    * @param string $operation
    *   The operation type (create, update, skip, error).
    */
@@ -254,12 +254,12 @@ class ComponentSyncEvent extends Event {
       'message' => $message,
       'context' => $context,
     ];
-    
+
     // Also add to data errors.
     $errors = $this->getDataValue('errors', []);
     $errors[] = $component_id;
     $this->setDataValue('errors', $errors);
-    
+
     return $this;
   }
 
@@ -333,11 +333,11 @@ class ComponentSyncEvent extends Event {
   protected function calculateSuccessRate() {
     $stats = $this->getStatistics();
     $total = $stats['total'] + $stats['errors'];
-    
+
     if ($total === 0) {
       return 100.0;
     }
-    
+
     return round(($stats['total'] / $total) * 100, 2);
   }
 
@@ -349,7 +349,7 @@ class ComponentSyncEvent extends Event {
    */
   public function getSummary() {
     $stats = $this->getStatistics();
-    
+
     $parts = [];
     if ($stats['created'] > 0) {
       $parts[] = t('@count created', ['@count' => $stats['created']]);
@@ -363,7 +363,7 @@ class ComponentSyncEvent extends Event {
     if ($stats['errors'] > 0) {
       $parts[] = t('@count errors', ['@count' => $stats['errors']]);
     }
-    
+
     return implode(', ', $parts) ?: t('No components processed');
   }
 

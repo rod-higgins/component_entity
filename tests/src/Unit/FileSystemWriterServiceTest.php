@@ -65,7 +65,7 @@ class FileSystemWriterServiceTest extends UnitTestCase {
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);
     $this->currentUser = $this->createMock(AccountProxyInterface::class);
     $this->logger = $this->createMock(LoggerInterface::class);
-    
+
     $moduleHandler = $this->createMock(ModuleHandlerInterface::class);
     $themeHandler = $this->createMock(ThemeHandlerInterface::class);
     $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
@@ -137,7 +137,7 @@ class FileSystemWriterServiceTest extends UnitTestCase {
     $method->setAccessible(TRUE);
 
     $result = $method->invoke($this->fileSystemWriter, $path);
-    
+
     $this->assertFalse($result['valid']);
     $this->assertStringContainsString('dangerous', strtolower($result['message']));
   }
@@ -166,7 +166,7 @@ class FileSystemWriterServiceTest extends UnitTestCase {
     $method->setAccessible(TRUE);
 
     $result = $method->invoke($this->fileSystemWriter, $content, $extension);
-    
+
     $this->assertEquals($expected, $result['valid']);
   }
 
@@ -202,7 +202,7 @@ class FileSystemWriterServiceTest extends UnitTestCase {
       ->willReturn(TRUE);
 
     $result = $method->invoke($this->fileSystemWriter, '/path/to/file.txt');
-    
+
     $this->assertTrue($result['success']);
   }
 

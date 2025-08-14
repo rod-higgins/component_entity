@@ -87,7 +87,7 @@ class ComponentRenderResource extends ResourceBase {
     EntityTypeManagerInterface $entity_type_manager,
     RendererInterface $renderer,
     ComponentRendererManager $component_renderer_manager,
-    Request $current_request
+    Request $current_request,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $serializer_formats, $logger);
     $this->entityTypeManager = $entity_type_manager;
@@ -124,7 +124,7 @@ class ComponentRenderResource extends ResourceBase {
    *
    * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
-  public function get(ComponentEntity $component = NULL) {
+  public function get(?ComponentEntity $component = NULL) {
     if (!$component) {
       throw new NotFoundHttpException('Component entity not found.');
     }
@@ -143,7 +143,7 @@ class ComponentRenderResource extends ResourceBase {
     try {
       // Get the appropriate renderer.
       $renderer_plugin = $this->componentRendererManager->getRenderer($component, $render_method);
-      
+
       if (!$renderer_plugin) {
         throw new BadRequestHttpException('No suitable renderer found for this component.');
       }
@@ -180,7 +180,7 @@ class ComponentRenderResource extends ResourceBase {
 
       $response = new ResourceResponse($data, 200);
       $response->addCacheableDependency($component);
-      
+
       return $response;
     }
     catch (\Exception $e) {
@@ -201,7 +201,7 @@ class ComponentRenderResource extends ResourceBase {
    *
    * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
-  public function post(ComponentEntity $component = NULL, array $data = []) {
+  public function post(?ComponentEntity $component = NULL, array $data = []) {
     if (!$component) {
       throw new NotFoundHttpException('Component entity not found.');
     }
@@ -221,7 +221,7 @@ class ComponentRenderResource extends ResourceBase {
     try {
       // Get the appropriate renderer.
       $renderer_plugin = $this->componentRendererManager->getRenderer($component, $render_method);
-      
+
       if (!$renderer_plugin) {
         throw new BadRequestHttpException('No suitable renderer found for this component.');
       }
@@ -252,7 +252,7 @@ class ComponentRenderResource extends ResourceBase {
 
       $response = new ResourceResponse($response_data, 200);
       $response->addCacheableDependency($component);
-      
+
       return $response;
     }
     catch (\Exception $e) {
@@ -268,7 +268,7 @@ class ComponentRenderResource extends ResourceBase {
    */
   protected function getContextFromRequest() {
     $context = [];
-    
+
     // Get all query parameters that start with 'context_'.
     foreach ($this->currentRequest->query->all() as $key => $value) {
       if (strpos($key, 'context_') === 0) {
@@ -276,7 +276,7 @@ class ComponentRenderResource extends ResourceBase {
         $context[$context_key] = $value;
       }
     }
-    
+
     return $context;
   }
 

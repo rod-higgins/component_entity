@@ -63,7 +63,7 @@ class BiDirectionalSyncServiceTest extends UnitTestCase {
     $this->fileWriter = $this->createMock(FileSystemWriterService::class);
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);
     $this->logger = $this->createMock(LoggerInterface::class);
-    
+
     $moduleHandler = $this->createMock(ModuleHandlerInterface::class);
 
     $this->syncService = new BiDirectionalSyncService(
@@ -99,7 +99,7 @@ class BiDirectionalSyncServiceTest extends UnitTestCase {
       ->willReturn(['success' => TRUE]);
 
     $result = $this->syncService->syncEntityToFiles($componentType);
-    
+
     $this->assertIsArray($result);
     $this->assertTrue($result['success']);
   }
@@ -156,8 +156,8 @@ class BiDirectionalSyncServiceTest extends UnitTestCase {
     $method = new \ReflectionMethod($this->syncService, 'getGenerationOptions');
     $method->setAccessible(TRUE);
 
-    $options = $method->invoke($this->syncService, null);
-    
+    $options = $method->invoke($this->syncService, NULL);
+
     $this->assertIsArray($options);
     $this->assertEquals('module', $options['target']);
     $this->assertEquals('test_module', $options['name']);

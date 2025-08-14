@@ -2,14 +2,12 @@
 
 namespace Drupal\component_entity\Plugin\ComponentRenderer;
 
-use Drupal\component_entity\Annotation\ComponentRenderer;
 use Drupal\component_entity\Entity\ComponentEntityInterface;
 use Drupal\component_entity\Plugin\ComponentRendererBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Plugin\Component\ComponentPluginManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Template\TwigEnvironment;
 
 /**
@@ -94,7 +92,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
     $plugin_definition,
     RendererInterface $renderer,
     ComponentPluginManager $component_manager,
-    TwigEnvironment $twig
+    TwigEnvironment $twig,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->renderer = $renderer;
@@ -122,15 +120,15 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
   public function render(ComponentEntityInterface $entity, array $context = []) {
     $bundle = $entity->bundle();
     $view_mode = $context['view_mode'] ?? 'default';
-    
+
     // Get cache strategy.
     $cache_strategy = $this->configuration['cache_strategy'] ?? 'aggressive';
     $inline_css = $this->configuration['inline_critical_css'] ?? TRUE;
     $optimize = $this->configuration['optimize_output'] ?? TRUE;
-    
+
     // Try to get the SDC component.
     $sdc_id = $this->getSDCComponentId($entity);
-    
+
     if ($sdc_id && $this->componentManager->hasDefinition($sdc_id)) {
       // Use SDC component rendering.
       $build = $this->renderSDCComponent($entity, $sdc_id, $context);
@@ -139,13 +137,13 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
       // Fall back to standard entity rendering.
       $build = $this->renderStandardEntity($entity, $view_mode, $context);
     }
-    
+
     // Apply server-side optimizations.
     $build = $this->applyOptimizations($build, $optimize, $inline_css);
-    
+
     // Set cache metadata based on strategy.
     $build['#cache'] = $this->getCacheMetadata($entity, $cache_strategy);
-    
+
     return $build;
   }
 
@@ -166,7 +164,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
     // Get component props and slots.
     $props = $this->extractComponentProps($entity, $context);
     $slots = $this->extractComponentSlots($entity, $context);
-    
+
     // Build the SDC render array.
     $build = [
       '#type' => 'component',
@@ -174,7 +172,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
       '#props' => $props,
       '#slots' => $slots,
     ];
-    
+
     // Add wrapper for styling and identification.
     $build['#prefix'] = sprintf(
       '<div class="component-entity component-entity--%s component-entity--%s" data-component-id="%s">',
@@ -183,7 +181,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
       $entity->uuid()
     );
     $build['#suffix'] = '</div>';
-    
+
     return $build;
   }
 
@@ -203,14 +201,14 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
   protected function renderStandardEntity(ComponentEntityInterface $entity, $view_mode, array $context) {
     $view_builder = \Drupal::entityTypeManager()->getViewBuilder('component');
     $build = $view_builder->view($entity, $view_mode);
-    
+
     // Add any additional context.
     if (!empty($context['additional_fields'])) {
       foreach ($context['additional_fields'] as $field_name => $field_value) {
         $build[$field_name] = $field_value;
       }
     }
-    
+
     return $build;
   }
 
@@ -231,11 +229,11 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
     if ($optimize) {
       // Add optimization flags for the theme layer.
       $build['#attributes']['data-optimized'] = 'true';
-      
+
       // Enable HTML minification.
       $build['#post_render'][] = [$this, 'minifyHtml'];
     }
-    
+
     if ($inline_css) {
       // Extract and inline critical CSS.
       $build['#attached']['html_head'][] = [
@@ -248,10 +246,10 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
         'critical_css_' . $build['#cache']['keys'][0] ?? 'component',
       ];
     }
-    
+
     // Add resource hints for better performance.
     $this->addResourceHints($build);
-    
+
     return $build;
   }
 
@@ -285,25 +283,25 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
    */
   protected function extractComponentProps(ComponentEntityInterface $entity, array $context) {
     $props = [];
-    
+
     // Extract field values as props.
     foreach ($entity->getFields() as $field_name => $field) {
       if (strpos($field_name, 'field_') === 0 && !$this->isSlotField($field_name)) {
         $prop_name = str_replace('field_', '', $field_name);
         $value = $field->getValue();
-        
+
         if (!empty($value)) {
           // Process the value based on field type.
           $props[$prop_name] = $this->processFieldValue($field, $value);
         }
       }
     }
-    
+
     // Merge with context props.
     if (!empty($context['props'])) {
       $props = array_merge($props, $context['props']);
     }
-    
+
     return $props;
   }
 
@@ -320,25 +318,25 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
    */
   protected function extractComponentSlots(ComponentEntityInterface $entity, array $context) {
     $slots = [];
-    
+
     // Extract slot fields.
     foreach ($entity->getFields() as $field_name => $field) {
       if ($this->isSlotField($field_name)) {
         $slot_name = str_replace('field_slot_', '', $field_name);
         $value = $field->getValue();
-        
+
         if (!empty($value)) {
           // Render the field for the slot.
           $slots[$slot_name] = $field->view();
         }
       }
     }
-    
+
     // Merge with context slots.
     if (!empty($context['slots'])) {
       $slots = array_merge($slots, $context['slots']);
     }
-    
+
     return $slots;
   }
 
@@ -370,7 +368,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
     // For single-value fields, return the value directly.
     if (count($value) === 1) {
       $item = reset($value);
-      
+
       // Extract the main property value.
       if (isset($item['value'])) {
         return $item['value'];
@@ -382,12 +380,12 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
           ->load($item['target_id']);
         return $entity;
       }
-      
+
       return $item;
     }
-    
+
     // For multi-value fields, return the array.
-    return array_map(function($item) use ($field) {
+    return array_map(function ($item) use ($field) {
       if (isset($item['value'])) {
         return $item['value'];
       }
@@ -416,31 +414,34 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
       'tags' => $this->getCacheTags($entity),
       'max-age' => $this->getCacheMaxAge($entity),
     ];
-    
+
     // Adjust based on strategy.
     switch ($strategy) {
       case 'aggressive':
         // Cache for longer periods.
-        $cache['max-age'] = 86400; // 24 hours
+        // 24 hours.
+        $cache['max-age'] = 86400;
         break;
-        
+
       case 'moderate':
         // Standard caching.
-        $cache['max-age'] = 3600; // 1 hour
+        // 1 hour.
+        $cache['max-age'] = 3600;
         break;
-        
+
       case 'minimal':
         // Minimal caching.
-        $cache['max-age'] = 300; // 5 minutes
+        // 5 minutes.
+        $cache['max-age'] = 300;
         $cache['contexts'][] = 'url.query_args';
         break;
-        
+
       case 'none':
         // No caching.
         $cache['max-age'] = 0;
         break;
     }
-    
+
     return $cache;
   }
 
@@ -473,7 +474,7 @@ class ServerSideRenderer extends ComponentRendererBase implements ContainerFacto
         'href' => '//fonts.googleapis.com',
       ],
     ];
-    
+
     // Add preconnect for critical resources.
     $build['#attached']['html_head_link'][] = [
       [
