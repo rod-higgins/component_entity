@@ -18,16 +18,16 @@ function component_entity_help($route_name, $route_match) {
   switch ($route_name) {
     case 'help.page.component_entity':
       $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Component Entity module creates a seamless bridge between SDC (Single Directory Components) and Drupal\'s entity system, making SDC components first-class Drupal citizens with support for both Twig and React rendering.') . '</p>';
-      $output .= '<h3>' . t('Uses') . '</h3>';
+      $output .= '<h3>' . t("About") . '</h3>';
+      $output .= '<p>' . t("The Component Entity module creates a seamless bridge between SDC (Single Directory Components) and Drupal's entity system, making SDC components first-class Drupal citizens with support for both Twig and React rendering.") . '</p>';
+      $output .= '<h3>' . t("Uses") . '</h3>';
       $output .= '<dl>';
-      $output .= '<dt>' . t('Creating components') . '</dt>';
-      $output .= '<dd>' . t('Components are content entities that can be created, edited, and managed like any other content.') . '</dd>';
-      $output .= '<dt>' . t('Dual rendering') . '</dt>';
-      $output .= '<dd>' . t('Each component can be rendered using either Twig (server-side) or React (client-side), chosen per instance.') . '</dd>';
-      $output .= '<dt>' . t('SDC integration') . '</dt>';
-      $output .= '<dd>' . t('Components automatically sync with SDC component definitions, mapping props to fields.') . '</dd>';
+      $output .= '<dt>' . t("Creating components") . '</dt>';
+      $output .= '<dd>' . t("Components are content entities that can be created, edited, and managed like any other content.") . '</dd>';
+      $output .= '<dt>' . t("Dual rendering") . '</dt>';
+      $output .= '<dd>' . t("Each component can be rendered using either Twig (server-side) or React (client-side), chosen per instance.") . '</dd>';
+      $output .= '<dt>' . t("SDC integration") . '</dt>';
+      $output .= '<dd>' . t("Components automatically sync with SDC component definitions, mapping props to fields.") . '</dd>';
       $output .= '</dl>';
       return $output;
   }
