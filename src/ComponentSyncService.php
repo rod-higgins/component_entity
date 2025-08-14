@@ -3,10 +3,13 @@
 namespace Drupal\component_entity;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\Display\EntityDisplayRepositoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Plugin\Component\ComponentPluginManager;
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\component_entity\Event\ComponentSyncEvent;
 use Drupal\field\Entity\FieldConfig;
@@ -63,7 +66,47 @@ class ComponentSyncService {
   protected $configFactory;
 
   /**
+   * The entity display repository.
+   *
+   * @var \Drupal\Core\Entity\Display\EntityDisplayRepositoryInterface
+   */
+  protected $entityDisplayRepository;
+
+  /**
+   * The module extension list.
+   *
+   * @var \Drupal\Core\Extension\ModuleExtensionList
+   */
+  protected $moduleExtensionList;
+
+  /**
+   * The state service.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
+  /**
    * Constructs a ComponentSyncService object.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Plugin\Component\ComponentPluginManager $component_manager
+   *   The SDC plugin manager.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
+   *   The logger factory.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   The event dispatcher.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Drupal\Core\Entity\Display\EntityDisplayRepositoryInterface $entity_display_repository
+   *   The entity display repository.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $module_extension_list
+   *   The module extension list.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state service.
    */
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
@@ -72,6 +115,9 @@ class ComponentSyncService {
     MessengerInterface $messenger,
     EventDispatcherInterface $event_dispatcher,
     ConfigFactoryInterface $config_factory,
+    EntityDisplayRepositoryInterface $entity_display_repository,
+    ModuleExtensionList $module_extension_list,
+    StateInterface $state,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->componentManager = $component_manager;
@@ -79,6 +125,58 @@ class ComponentSyncService {
     $this->messenger = $messenger;
     $this->eventDispatcher = $event_dispatcher;
     $this->configFactory = $config_factory;
+    $this->entityDisplayRepository = $entity_display_repository;
+    $this->moduleExtensionList = $module_extension_list;
+    $this->state = $state;
+  }
+
+  /**
+   * Configures view display for a field.
+   *
+   * @param string $bundle
+   *   The component bundle.
+   * @param string $field_name
+   *   The field name.
+   * @param object $prop_schema
+   *   The prop schema.
+   */
+  protected function configureViewDisplay($bundle, $field_name, $prop_schema) {
+    $view_display = $this->entityDisplayRepository
+      ->getViewDisplay('component', $bundle, 'default');
+
+    // Hide all fields by default (they're passed to the component).
+    $view_display->removeComponent($field_name);
+    $view_display->save();
+  }
+
+  /**
+   * Gets sync status information.
+   *
+   * @return array
+   *   Array with sync status data.
+   */
+  public function getSyncStatus() {
+    $status = [
+      'synced_count' => 0,
+      'errors' => [],
+      'last_sync' => NULL,
+    ];
+
+    // Get count of synced component types.
+    $component_types = $this->entityTypeManager
+      ->getStorage('component_type')
+      ->loadMultiple();
+
+    foreach ($component_types as $component_type) {
+      if ($component_type->get('sdc_id')) {
+        $status['synced_count']++;
+      }
+    }
+
+    // Get last sync time from state.
+    $status['last_sync'] = $this->state->get('component_entity.last_sync');
+
+    return $status;
   }
 
   /**
@@ -470,7 +568,7 @@ class ComponentSyncService {
    *   The prop schema.
    */
   protected function configureFormDisplay($bundle, $field_name, $prop_schema) {
-    $form_display = \Drupal::service('entity_display.repository')
+    $form_display = $this->entityDisplayRepository
       ->getFormDisplay('component', $bundle, 'default');
 
     $widget_type = 'string_textfield';
@@ -510,25 +608,6 @@ class ComponentSyncService {
     ]);
 
     $form_display->save();
-  }
-
-  /**
-   * Configures view display for a field.
-   *
-   * @param string $bundle
-   *   The component bundle.
-   * @param string $field_name
-   *   The field name.
-   * @param object $prop_schema
-   *   The prop schema.
-   */
-  protected function configureViewDisplay($bundle, $field_name, $prop_schema) {
-    $view_display = \Drupal::service('entity_display.repository')
-      ->getViewDisplay('component', $bundle, 'default');
-
-    // Hide all fields by default (they're passed to the component).
-    $view_display->removeComponent($field_name);
-    $view_display->save();
   }
 
   /**
@@ -612,44 +691,13 @@ class ComponentSyncService {
    *   TRUE if React component exists.
    */
   protected function hasReactComponent($component_id) {
-    $module_path = \Drupal::service('extension.list.module')
-      ->getPath('component_entity');
+    $module_path = $this->moduleExtensionList->getPath('component_entity');
 
     $bundle = $this->generateBundleName($component_id);
     $jsx_file = $module_path . '/components/' . $bundle . '/' . $bundle . '.jsx';
     $tsx_file = $module_path . '/components/' . $bundle . '/' . $bundle . '.tsx';
 
     return file_exists($jsx_file) || file_exists($tsx_file);
-  }
-
-  /**
-   * Gets sync status information.
-   *
-   * @return array
-   *   Array with sync status data.
-   */
-  public function getSyncStatus() {
-    $status = [
-      'synced_count' => 0,
-      'errors' => [],
-      'last_sync' => NULL,
-    ];
-
-    // Get count of synced component types.
-    $component_types = $this->entityTypeManager
-      ->getStorage('component_type')
-      ->loadMultiple();
-
-    foreach ($component_types as $component_type) {
-      if ($component_type->get('sdc_id')) {
-        $status['synced_count']++;
-      }
-    }
-
-    // Get last sync time from state.
-    $status['last_sync'] = \Drupal::state()->get('component_entity.last_sync');
-
-    return $status;
   }
 
 }

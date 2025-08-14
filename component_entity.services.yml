@@ -1,4 +1,5 @@
 services:
+
   # Main sync service
   component_entity.sync:
     class: Drupal\component_entity\ComponentSyncService
@@ -9,6 +10,9 @@ services:
       - '@messenger'
       - '@event_dispatcher'
       - '@config.factory'
+      - '@entity_display.repository'
+      - '@extension.list.module'
+      - '@state'
     tags:
       - { name: service_collector, tag: component_sync_processor, call: addProcessor }
 
@@ -65,8 +69,15 @@ services:
   component_entity.library_discovery:
     class: Drupal\component_entity\ComponentLibraryDiscovery
     arguments:
-      - '@extension.list.module'
+      - '@module_handler'
+      - '@theme_handler'
       - '@file_system'
+      - '@cache.discovery'
+
+  # Logger channel
+  logger.channel.component_entity:
+    parent: logger.channel_base
+    arguments: ['component_entity']
 
   # Drush commands
   component_entity.commands:
@@ -77,11 +88,6 @@ services:
       - '@logger.factory'
     tags:
       - { name: drush.command }
-
-  # Logger channel
-  logger.channel.component_entity:
-    parent: logger.channel_base
-    arguments: ['component_entity']
 
   # Component field manager
   component_entity.field_manager:
